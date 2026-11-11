@@ -75,6 +75,11 @@ func (a *App) setup(ctx context.Context) int {
 			return a.stopped()
 		}
 	}
+	// Remember the team now, so a run that is stopped during the downloads
+	// continues without asking again (D37). Save writes only on a change.
+	if _, err := a.st.Save(a.layout.StateFile); err != nil {
+		a.log.Printf("saving state: %v", err)
+	}
 
 	// Step 4: core tools.
 	a.step(4, "Installing tools", "download and install the tools")

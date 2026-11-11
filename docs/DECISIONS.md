@@ -113,3 +113,6 @@ kube-onramp's job is to read and write the user's files and run their tools. gos
 
 ## D36. Dependencies are upgraded when CI finds a vulnerability
 client-go v0.37.2 pulls in `golang.org/x/net` v0.57.0 and `golang.org/x/text` v0.40.0. govulncheck (reachable calls in HTTP/2) and Trivy (HIGH) flagged them on 2026-11-11. They are raised to x/net v0.62.0 (2026-10-27) and x/text v0.43.0 (2026-10-09), the versions that fix the issues and are at least 7 days old. CI fails on any reachable vulnerability (govulncheck) or HIGH/CRITICAL finding (Trivy), so this repeats whenever new advisories appear.
+
+## D37. The team name is saved right after the Enter press
+Found in acceptance test 5 (2026-11-11): a run killed during the downloads had not saved the team yet, so a re-run without `--team` stopped with "needs your team name". state.json is now saved after the confirmation (it is only written when its content changes, so a run with nothing to do still writes nothing).
