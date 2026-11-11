@@ -2,7 +2,7 @@
 
 One command that gets your laptop ready for Kubernetes work on a shared cluster. The first supported cluster is the University of Tartu DevOps course cluster (fall 2026).
 
-> **Status: not released yet.** v0.1.0 is planned for 15 November 2026. The commands below work after that.
+> **Status: release candidate.** [v0.1.0-rc.1](https://github.com/Sten-Qy-Li/kube-onramp/releases/tag/v0.1.0-rc.1) is out for testing; v0.1.0 is planned for 15 November 2026. The lines below use `releases/latest`, which works from v0.1.0 on. To test the release candidate, replace `latest/download` with `download/v0.1.0-rc.1` in the line.
 
 ## What it does
 
