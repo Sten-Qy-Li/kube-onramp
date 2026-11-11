@@ -110,3 +110,6 @@ The CI smoke tests start from `internal/kubeconfig/testdata/other.canonical.yaml
 
 ## D35. gosec exclusions
 kube-onramp's job is to read and write the user's files and run their tools. gosec rules G103, G115, G204, G301, G302, G304 and G306 flag exactly that, so they are excluded in `.golangci.yml`, with a reason per rule. Secrets (kubeconfig, state, reports, logs) are still written with mode 600.
+
+## D36. Dependencies are upgraded when CI finds a vulnerability
+client-go v0.37.2 pulls in `golang.org/x/net` v0.57.0 and `golang.org/x/text` v0.40.0. govulncheck (reachable calls in HTTP/2) and Trivy (HIGH) flagged them on 2026-11-11. They are raised to x/net v0.62.0 (2026-10-27) and x/text v0.43.0 (2026-10-09), the versions that fix the issues and are at least 7 days old. CI fails on any reachable vulnerability (govulncheck) or HIGH/CRITICAL finding (Trivy), so this repeats whenever new advisories appear.

@@ -25,7 +25,8 @@ else
 	export SHELL=/bin/bash
 	rc="$HOME/.bashrc"
 fi
-# An rc file that puts Homebrew first, like on Machine B.
+# An rc file that puts Homebrew first, like on Machine B. $PATH is literal text here.
+# shellcheck disable=SC2016
 printf '%s\n' 'export EDITOR=vi' 'export PATH="/usr/local/bin:$PATH"' >"$rc"
 cp "$rc" "$work/rc.orig"
 
