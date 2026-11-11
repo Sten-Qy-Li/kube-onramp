@@ -2,6 +2,8 @@
 
 Context for AI coding sessions on `kube-onramp`. Read `docs/SPEC.md` (what to build) and `docs/DECISIONS.md` (why it is built this way) before changing behavior.
 
+**Start here:** `docs/OPEN-ITEMS.md` lists what is left to do (v0.1.0 is released). Keep it up to date: tick off finished items and add new ones.
+
 ## Hard rules
 
 ### Privacy (the repo is public)

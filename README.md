@@ -106,6 +106,7 @@ kube-onramp does not install "whatever is newest" at install time. Every tool ha
 - [`docs/SPEC.md`](docs/SPEC.md): what the tool does.
 - [`docs/DECISIONS.md`](docs/DECISIONS.md): why it works this way.
 - [`CLAUDE.md`](CLAUDE.md): conventions, and how to run it without touching your own setup.
+- [`docs/OPEN-ITEMS.md`](docs/OPEN-ITEMS.md): what is left to do.
 
 ```sh
 go test ./...
