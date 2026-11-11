@@ -2,7 +2,7 @@
 
 One command that gets your laptop ready for Kubernetes work on a shared cluster. The first supported cluster is the University of Tartu DevOps course cluster (fall 2026).
 
-> **Status: release candidate.** [v0.1.0-rc.1](https://github.com/Sten-Qy-Li/kube-onramp/releases/tag/v0.1.0-rc.1) is out for testing; v0.1.0 is planned for 15 November 2026. The lines below use `releases/latest`, which works from v0.1.0 on. To test the release candidate, replace `latest/download` with `download/v0.1.0-rc.1` in the line.
+> **Status: release candidate.** [v0.1.0-rc.3](https://github.com/Sten-Qy-Li/kube-onramp/releases/tag/v0.1.0-rc.3) is out for testing; v0.1.0 is planned for 15 November 2026. The lines below use `releases/latest`, which works from v0.1.0 on. To test the release candidate, replace `latest/download` with `download/v0.1.0-rc.3` in the line.
 
 ## What it does
 
@@ -30,6 +30,8 @@ curl -fsSL https://github.com/Sten-Qy-Li/kube-onramp/releases/latest/download/in
 ```
 
 Then follow the text on the screen. You only need to press Enter once and log in once.
+
+**If PowerShell shows `>>`** after you paste, the line was split into two lines while copying. Press Ctrl+C, then paste it again as one single line.
 
 **Other way (Windows):** download `kube-onramp_windows_amd64.exe` from the [Releases page](https://github.com/Sten-Qy-Li/kube-onramp/releases) and double-click it. Windows may show a blue "Windows protected your PC" window. Click **More info**, then **Run anyway**.
 
