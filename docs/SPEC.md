@@ -127,6 +127,7 @@ Build rules:
     - use `Invoke-WebRequest -UseBasicParsing`;
     - set `$ProgressPreference = 'SilentlyContinue'`, since the progress bar makes downloads very slow on 5.1;
     - never call `exit`, because `iex` runs in the user's own session. Return instead;
+    - after the run, prepend the bin dir to the session's `$env:Path` (remove it after `-Reset`), so `kubectl` and `kube-onramp` work in the same window, not only in new ones (D38);
     - no admin rights, and no execution-policy changes.
   - **`install.sh`:**
     - POSIX `sh` with `set -eu`;

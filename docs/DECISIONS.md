@@ -116,3 +116,6 @@ client-go v0.37.2 pulls in `golang.org/x/net` v0.57.0 and `golang.org/x/text` v0
 
 ## D37. The team name is saved right after the Enter press
 Found in acceptance test 5 (2026-11-11): a run killed during the downloads had not saved the team yet, so a re-run without `--team` stopped with "needs your team name". state.json is now saved after the confirmation (it is only written when its content changes, so a run with nothing to do still writes nothing).
+
+## D38. install.ps1 also updates the PATH of the current window
+Found in the Windows Sandbox test (acceptance test 1, 2026-11-11): right after the one-liner, `kube-onramp check` in the same window gave "not recognized", because the registry PATH only reaches new windows. Students will try exactly that. install.ps1 runs inside the user's PowerShell session, so after the run it puts the bin folder first in `$env:Path` of that session (and removes it after `-Reset`). On macOS `curl | sh` runs in a child shell, which can't change the parent shell; there the "Open a NEW terminal window" step stays.

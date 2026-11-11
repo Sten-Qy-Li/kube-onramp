@@ -167,3 +167,14 @@ try {
     Write-BootError 'E-BOOT-RUN' 'kube-onramp was downloaded but could not start. An antivirus program may have blocked it.' 'Send the report to a TA.' $_.Exception.Message
     return
 }
+
+# 7. Make kubectl and kube-onramp work in this window too, not only in new
+# windows. This script runs inside the user's session, so it can change this
+# window's PATH (the registry change only reaches new windows).
+$others = @($env:Path -split ';' | Where-Object { $_ -and ($_.TrimEnd('\') -ne $BinDir.TrimEnd('\')) })
+if ($Reset -or -not (Test-Path -LiteralPath (Join-Path $BinDir 'kubectl.exe'))) {
+    $env:Path = $others -join ';'
+} else {
+    $env:Path = (@($BinDir) + $others) -join ';'
+    Write-Host '  Tip: kubectl and kube-onramp also work in this window now.'
+}
