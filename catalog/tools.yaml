@@ -1,0 +1,92 @@
+# Tools that kube-onramp installs. Adding a tool should only need a new entry here.
+#
+# Every sha256 was checked against the upstream checksum file AND by hashing the
+# downloaded file. minOS comes from the Go version inside each binary (read with
+# `go version <file>`) and the Go wiki's minimum requirements.
+# Last verified: 2026-11-11 (docs/DECISIONS.md, D2-D4).
+#
+# platforms keys are GOOS/GOARCH. minOS is compared with the OS version:
+# Windows NT version (10.0), macOS product version (12.0), Linux kernel (3.2).
+# binary is the installed name; ".exe" is added on Windows.
+schemaVersion: 1
+tools:
+  - id: kubectl
+    name: kubectl
+    role: core
+    version: 1.36.6 # cluster server is v1.36.6; built with go1.26.10
+    binary: kubectl
+    versionCommand: [version, --client, -o, json]
+    versionRegex: '"gitVersion":\s*"v([0-9]+\.[0-9]+\.[0-9]+)'
+    identity:
+      command: [version, --client, -o, json]
+      mustMatch: '"clientVersion"'
+    platforms:
+      windows/amd64:
+        url: https://dl.k8s.io/release/v1.36.6/bin/windows/amd64/kubectl.exe
+        sha256: 2bc0fbea066016c62cfef307108c303c2f796420d4a5dfc844de6e25d4bc47e0
+        size: 61115904
+        archive: none
+        minOS: "10.0"
+      darwin/amd64:
+        url: https://dl.k8s.io/release/v1.36.6/bin/darwin/amd64/kubectl
+        sha256: 2e22d382f2423c88d9d076246f860bb3d5c743dd279ca63e113474bb88382426
+        size: 60847264
+        archive: none
+        minOS: "12.0"
+      darwin/arm64:
+        url: https://dl.k8s.io/release/v1.36.6/bin/darwin/arm64/kubectl
+        sha256: 1cf735c3d35ccfec28d0618784cb06a4614d2c42aade28b6be0eab76a2ffb623
+        size: 57326258
+        archive: none
+        minOS: "12.0"
+      linux/amd64:
+        url: https://dl.k8s.io/release/v1.36.6/bin/linux/amd64/kubectl
+        sha256: 29818b6729dc9262b692307470d0558d027725e738be5dd47c760261868a2634
+        size: 59592866
+        archive: none
+        minOS: "3.2"
+
+  - id: kubelogin
+    name: kubelogin (int128)
+    role: core
+    version: 1.36.4 # built with go1.26.6
+    binary: kubectl-oidc_login
+    versionCommand: [version]
+    # Output: "kubelogin version v1.36.4 (go1.26.6 windows_amd64)".
+    # Some builds print an empty version; that counts as "version unknown".
+    versionRegex: 'kubelogin version v?([0-9]+\.[0-9]+\.[0-9]+)'
+    identity:
+      # int128: "Log in to the OpenID Connect provider."
+      # Azure (unrelated): "login to azure active directory and populate kubeconfig with AAD tokens"
+      command: [--help]
+      mustMatch: 'Log in to the OpenID Connect provider'
+      mustNotMatch: '(?i)azure active directory'
+    platforms:
+      windows/amd64:
+        url: https://github.com/int128/kubelogin/releases/download/v1.36.4/kubelogin_windows_amd64.zip
+        sha256: a68be8ff153a7d3df1de19f272a9879164f55b8bb39298859d0e20c9e2c414ad
+        size: 11471605
+        archive: zip
+        path: kubelogin.exe
+        minOS: "10.0"
+      darwin/amd64:
+        url: https://github.com/int128/kubelogin/releases/download/v1.36.4/kubelogin_darwin_amd64.zip
+        sha256: 7927b10c122b55dd4d9632f75d56752bfdc5f7b6ad3104615115c02f5f55e4f0
+        size: 11634752
+        archive: zip
+        path: kubelogin
+        minOS: "12.0"
+      darwin/arm64:
+        url: https://github.com/int128/kubelogin/releases/download/v1.36.4/kubelogin_darwin_arm64.zip
+        sha256: 5aa470d059a9672d732439474678ac05a0de5623ad3af54966b8fe1ac7df4254
+        size: 10867546
+        archive: zip
+        path: kubelogin
+        minOS: "12.0"
+      linux/amd64:
+        url: https://github.com/int128/kubelogin/releases/download/v1.36.4/kubelogin_linux_amd64.zip
+        sha256: 9e8baeb4905d35a301304af2548324997add512fe94ab20e65993d167212bf85
+        size: 11567162
+        archive: zip
+        path: kubelogin
+        minOS: "3.2"

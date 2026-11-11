@@ -1,0 +1,63 @@
+# GoReleaser v2. Releases run from .github/workflows/release.yml on v* tags.
+# Local dry run: goreleaser release --snapshot --clean
+version: 2
+
+project_name: kube-onramp
+
+builds:
+  - id: kube-onramp
+    main: ./cmd/kube-onramp
+    binary: kube-onramp
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }} -X main.commit={{ .ShortCommit }} -X main.date={{ .CommitDate }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    targets:
+      - windows_amd64
+      - darwin_amd64
+      - darwin_arm64
+      - linux_amd64
+
+archives:
+  # Archives for people who download by hand.
+  - id: archives
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - NOTICE
+      - README.md
+  # Raw binaries without a version in the name, so install.ps1 / install.sh
+  # can build the URL from the tag (docs/DECISIONS.md, D14).
+  - id: binaries
+    formats: [binary]
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-snapshot"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+release:
+  github:
+    owner: Sten-Qy-Li
+    name: kube-onramp
+  # Tags like v0.1.0-rc.1 become pre-releases, so releases/latest skips them.
+  prerelease: auto
+  footer: |
+    Student project. Not affiliated with or endorsed by the University of Tartu.

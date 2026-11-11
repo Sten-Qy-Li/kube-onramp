@@ -1,0 +1,14 @@
+# The original build brief; docs/SPEC.md replaces it.
+KUBE_ONRAMP_BRIEF.md
+
+# Build output
+/dist/
+/kube-onramp
+/kube-onramp.exe
+*.exe
+*.test
+*.out
+coverage.*
+
+# Local tool state
+.claude/settings.local.json
