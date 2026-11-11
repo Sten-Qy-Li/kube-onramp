@@ -198,6 +198,7 @@ kube-onramp version
 | `--profile <id>` | Default `ut-devops` |
 | `--no-color` | Also honor the `NO_COLOR` environment variable |
 | `--skip-login` | Hidden, for tests and CI: skip the browser login and cluster checks |
+| `--relogin` | Forget kube-onramp's own token cache and log in again (for a wrong browser account) |
 
 Environment variable `KUBE_ONRAMP_HOME` overrides the tool's home directory (for tests).
 
@@ -253,7 +254,8 @@ For each catalog tool, run five checks:
 2. **Right product:** the identity check.
 3. **Acceptable version:**
    - kubectl must be within ±1 minor of the server;
-   - Helm must be 4.x.
+   - Helm must be 4.x;
+   - a tool that prints no version (kubelogin v1.36.4 release builds) counts as the pinned version only if it is kube-onramp's own copy with the SHA-256 recorded at install time (D23).
 4. **Actually runs:** the version command succeeds.
 5. **Wins on PATH in a new terminal.** Compute this for a new shell, not the current process:
    - **Windows:** build PATH as the system PATH plus the user PATH from the registry, with variables expanded, then resolve.
@@ -310,7 +312,7 @@ Interrupting can never leave a half-written file in `bin`. Show a simple percent
 **Kubeconfig:**
 1. Back up the whole file to `backups/` with a timestamp.
 2. Load and merge with client-go `clientcmd`. Add or update **only** the profile's cluster, user and contexts, and leave everything else untouched. That includes the course's original `etais-user@kubernetes` entries and Machine B's `config.broken`. "Untouched" means the content stays the same: `clientcmd.Write` re-serializes the file, so YAML comments and formatting are not kept (kubectl behaves the same way). The backup keeps the exact original bytes.
-3. Set the current context to `ut-devops-staging`, and record the previous one for `reset`.
+3. Set the current context to `ut-devops-staging`, and record the previous one for `reset`. If the current context is already `ut-devops-prod`, keep it (D25).
 4. Serialize with `clientcmd.Write`, then write atomically (temporary file, then rename). Use UTF-8 without BOM, and mode 600 on macOS.
 5. If the file can't be parsed (for example UTF-16, broken YAML or binary garbage), keep the backup, write a fresh file, and tell the user where the backup is.
 
@@ -422,9 +424,10 @@ Each code has a fixed B1 message and next steps. Define these, and add more as n
 | `E-PRE-OS`, `E-PRE-WSL`, `E-PRE-DISK`, `E-PRE-NET`, `E-PRE-PORTS` | Preflight failures (`E-PRE-NET` names the host it couldn't reach) |
 | `E-BOOT-*` | Bootstrap script failures |
 | `E-DL`, `E-SHA`, `E-EXTRACT` | Download, checksum mismatch, archive problems |
+| `E-INSTALL` | A verified file couldn't be put into the bin folder, or the new copy doesn't start |
 | `E-PATH` | Couldn't update PATH |
 | `E-KCFG` | Couldn't read or write the kubeconfig |
-| `E-LOGIN-TIMEOUT`, `E-LOGIN-REJECTED` | Login failures |
+| `E-LOGIN-TIMEOUT`, `E-LOGIN-REJECTED`, `E-LOGIN-FAILED` | Login failures (`E-LOGIN-FAILED`: anything that is not a timeout, rejection, port or network problem) |
 | `E-CLUSTER-UNREACHABLE` | API server not reachable |
 | `E-ACCESS-FORBIDDEN` | No access to the staging namespace |
 | `E-INTERNAL` | A recovered panic. The stack trace goes only in the log file, never on screen |

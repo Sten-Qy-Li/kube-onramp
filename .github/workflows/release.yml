@@ -24,6 +24,8 @@ jobs:
         with:
           go-version-file: go.mod
       - run: go test ./...
+      - name: Bake the tag into the install scripts
+        run: sh scripts/bake-tag.sh "$GITHUB_REF_NAME"
       - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         with:
           distribution: goreleaser

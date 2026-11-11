@@ -33,6 +33,8 @@ Then follow the text on the screen. You only need to press Enter once and log in
 
 **Other way (Windows):** download `kube-onramp_windows_amd64.exe` from the [Releases page](https://github.com/Sten-Qy-Li/kube-onramp/releases) and double-click it. Windows may show a blue "Windows protected your PC" window. Click **More info**, then **Run anyway**.
 
+**Options for the Windows line:** add them after `-Team <team>`, for example `-Minimal` (no extra tools), `-Yes` (don't wait for Enter), `-DryRun` (only show the plan), `-Check` or `-Reset`. On macOS, add the normal flags after `--team <team>`, for example `--dry-run`.
+
 ## Before a presentation
 
 Open a terminal and run:
@@ -42,6 +44,8 @@ kube-onramp check
 ```
 
 It checks your login and your access. If your login is old, the browser opens so you can log in again. It does not install anything.
+
+If kube-onramp says "You are logged in as" someone else, log out of that account in your browser and run `kube-onramp check --relogin`.
 
 ## What it changes on your computer
 
@@ -71,15 +75,21 @@ When something goes wrong, kube-onramp shows an error code, copies a short repor
 |---|---|
 | `E-PRE-*` | Your computer is not ready (OS, disk space, network, login ports). Nothing was changed. |
 | `E-BOOT-*` | The install script could not download or start kube-onramp. |
-| `E-DL`, `E-SHA`, `E-EXTRACT` | A download failed or was not the expected file. |
+| `E-DL`, `E-SHA`, `E-EXTRACT` | A download failed or was not the expected file. Run kube-onramp again; it continues where it stopped. |
+| `E-INSTALL` | A program could not be saved in kube-onramp's folder, or does not start. An antivirus program may block it. |
 | `E-PATH` | PATH could not be updated. |
-| `E-KCFG` | The Kubernetes settings file could not be read or written. |
-| `E-LOGIN-TIMEOUT`, `E-LOGIN-REJECTED` | The browser login did not finish, or the cluster did not accept it. |
-| `E-CLUSTER-UNREACHABLE` | The cluster cannot be reached from your network. |
-| `E-ACCESS-FORBIDDEN` | You are logged in, but you cannot see your team's namespace. Check your team name first. |
-| `W-SHADOW` | Another `kubectl` comes first on your PATH (often Docker Desktop's). |
+| `E-KCFG` | The Kubernetes settings file could not be read or written. Close editors or Lens, then run again. |
+| `E-LOGIN-TIMEOUT` | The browser login did not finish in 5 minutes. Run again and log in when the browser opens. |
+| `E-LOGIN-REJECTED` | The cluster did not accept your login. Check that you used your own university account. |
+| `E-LOGIN-FAILED` | The login failed for another reason. Send the report to a TA. |
+| `E-CLUSTER-UNREACHABLE` | The cluster cannot be reached from your network. Try another network. |
+| `E-ACCESS-FORBIDDEN` | You are logged in, but you cannot see your team's namespace. Check your team name first (`kube-onramp --team <your-team>`). If it is right, ask the teammate who created the namespace in ETAIS, or a TA, for access. |
+| `E-INTERNAL` | A bug in kube-onramp. Send the report. |
+| `W-SHADOW` | Another `kubectl` comes first on your PATH (often Docker Desktop's). If it is too old, update Docker Desktop. |
+| `W-PROD-NOT-YET` | You can't see the prod namespace yet. This is normal before Phase 4. |
+| `W-SKEW` | Your kubectl and the cluster are far apart in version. |
 
-More details for each code will be added with v0.1.0.
+"kube-onramp is already running in another window" (exit code 3) means another kube-onramp window is still open. Finish or close it first.
 
 ## Supply chain
 

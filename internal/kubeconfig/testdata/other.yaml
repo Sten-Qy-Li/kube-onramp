@@ -1,0 +1,19 @@
+# A kubeconfig with an unrelated cluster (fake data).
+apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    certificate-authority-data: ZmFrZS1jYQ==
+    server: https://kubernetes.docker.internal:6443
+  name: docker-desktop
+contexts:
+- context:
+    cluster: docker-desktop
+    user: docker-desktop
+  name: docker-desktop
+current-context: docker-desktop
+users:
+- name: docker-desktop
+  user:
+    client-certificate-data: ZmFrZS1jZXJ0
+    client-key-data: ZmFrZS1rZXk=

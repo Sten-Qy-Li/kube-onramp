@@ -54,6 +54,45 @@ jobs:
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
+      - name: Lint the shell scripts
+        run: shellcheck --shell=sh scripts/*.sh
+
+  smoke:
+    # setup, setup again (nothing may change), check, reset, all back (SPEC 12).
+    name: smoke (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Check install.ps1 with Windows PowerShell 5.1
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $errs = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile("$PWD\scripts\install.ps1", [ref]$null, [ref]$errs)
+          if ($errs.Count) { $errs; exit 1 }
+          if ([IO.File]::ReadAllBytes("$PWD\scripts\install.ps1") | Where-Object { $_ -gt 127 }) { 'install.ps1 must be pure ASCII'; exit 1 }
+          "PowerShell $($PSVersionTable.PSVersion): install.ps1 parses"
+      - name: Smoke test (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          go build -o "$env:RUNNER_TEMP\kor\kube-onramp.exe" ./cmd/kube-onramp
+          ./scripts/smoke-test.ps1 -Binary "$env:RUNNER_TEMP\kor\kube-onramp.exe"
+      - name: Smoke test (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          sw_vers
+          go build -o "$RUNNER_TEMP/kor/kube-onramp" ./cmd/kube-onramp
+          sh scripts/smoke-test.sh "$RUNNER_TEMP/kor/kube-onramp"
 
   govulncheck:
     runs-on: ubuntu-latest
@@ -98,6 +137,8 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+      - name: Bake a test tag into the install scripts
+        run: sh scripts/bake-tag.sh v0.0.0-snapshot
       - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         with:
           distribution: goreleaser
@@ -109,7 +150,7 @@ jobs:
         run: |
           set -eu
           cat dist/checksums.txt
-          for f in kube-onramp_windows_amd64.exe kube-onramp_darwin_amd64 kube-onramp_darwin_arm64 kube-onramp_linux_amd64; do
+          for f in kube-onramp_windows_amd64.exe kube-onramp_darwin_amd64 kube-onramp_darwin_arm64 kube-onramp_linux_amd64 install.ps1 install.sh; do
             grep -q "  $f\$" dist/checksums.txt || { echo "missing release asset $f"; exit 1; }
           done
           ./dist/kube-onramp_linux_amd64_v1/kube-onramp version

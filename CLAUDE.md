@@ -62,6 +62,19 @@ go run ./cmd/kube-onramp --yes --skip-login --team ci-test
 
 Tests must do the same through `t.TempDir()` and `t.Setenv`; a test must never read or write the developer's real home, PATH or kubeconfig.
 
+### End-to-end smoke tests (same as CI)
+```powershell
+go build -o $env:TEMP\kor\kube-onramp.exe ./cmd/kube-onramp
+./scripts/smoke-test.ps1 -Binary $env:TEMP\kor\kube-onramp.exe   # uses a throwaway registry key unless CI=true
+```
+```sh
+go build -o /tmp/kor/kube-onramp ./cmd/kube-onramp && sh scripts/smoke-test.sh /tmp/kor/kube-onramp
+```
+They download the pinned kubectl and kubelogin (about 70 MB). The real browser login needs a person: run with a temporary `KUBE_ONRAMP_HOME` and `KUBECONFIG`, without `--skip-login`, and ask the maintainer to log in.
+
+### Release
+`scripts/bake-tag.sh <tag>` writes the tag into `build/scripts/install.*`; the release workflow does this before GoReleaser. `-rc` tags become GitHub pre-releases.
+
 ## Conventions
 - Pure Go, `CGO_ENABLED=0`. No UPX.
 - Pure logic (plan, PATH string editing, rc blocks, kubeconfig merge, redaction) lives in functions without I/O and gets table-driven tests. OS calls stay in thin wrappers.

@@ -9,6 +9,18 @@ linters:
     - misspell
     - noctx
     - unconvert
+  settings:
+    gosec:
+      excludes:
+        # kube-onramp's job is to read and write the user's own files and to
+        # run their tools, so these patterns are expected and were reviewed:
+        - G103 # unsafe.Pointer in Win32 calls (clipboard, console, broadcast)
+        - G115 # integer conversions in Win32 calls and test helpers
+        - G204 # subprocesses with variable arguments (kubectl, kubelogin, the login shell)
+        - G301 # 0755 folders (bin, ~/.kube), like any program folder
+        - G302 # 0755 files: installed programs must be executable
+        - G304 # file paths from variables (kubeconfig, rc files, state, downloads)
+        - G306 # 0644 for shell rc files and test fixtures; secrets use 0600
 
 formatters:
   enable:

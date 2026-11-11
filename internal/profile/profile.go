@@ -29,6 +29,7 @@ const TeamPlaceholder = "{team}"
 type Profile struct {
 	ID           string          `json:"id"`
 	DisplayName  string          `json:"displayName"`
+	ClusterNoun  string          `json:"clusterNoun"`
 	Cluster      Cluster         `json:"cluster"`
 	OIDC         OIDC            `json:"oidc"`
 	Exec         Exec            `json:"exec"`
@@ -104,6 +105,9 @@ type Link struct {
 
 var idPattern = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)
 
+// ErrUnknown means there is no profile with the requested id.
+var ErrUnknown = errors.New("unknown profile")
+
 // LoadEmbedded loads a profile that is built into the binary.
 func LoadEmbedded(id string) (*Profile, error) {
 	return Load(kubeonramp.Profiles, id)
@@ -112,11 +116,11 @@ func LoadEmbedded(id string) (*Profile, error) {
 // Load reads profiles/<id>.yaml from fsys.
 func Load(fsys fs.FS, id string) (*Profile, error) {
 	if !idPattern.MatchString(id) {
-		return nil, fmt.Errorf("profile id %q is not valid", id)
+		return nil, fmt.Errorf("profile id %q is not valid: %w", id, ErrUnknown)
 	}
 	data, err := fs.ReadFile(fsys, "profiles/"+id+".yaml")
 	if errors.Is(err, fs.ErrNotExist) {
-		return nil, fmt.Errorf("there is no profile called %q", id)
+		return nil, fmt.Errorf("there is no profile called %q: %w", id, ErrUnknown)
 	}
 	if err != nil {
 		return nil, err
@@ -153,6 +157,9 @@ func (p *Profile) Validate() error {
 	}
 	if p.DisplayName == "" {
 		bad("displayName is empty")
+	}
+	if p.ClusterNoun == "" {
+		bad("clusterNoun is empty")
 	}
 	if err := checkHTTPS(p.Cluster.Server); err != nil {
 		bad("cluster.server: %v", err)

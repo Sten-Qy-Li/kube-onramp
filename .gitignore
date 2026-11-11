@@ -3,6 +3,7 @@ KUBE_ONRAMP_BRIEF.md
 
 # Build output
 /dist/
+/build/
 /kube-onramp
 /kube-onramp.exe
 *.exe

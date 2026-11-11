@@ -69,3 +69,44 @@ Windows curl (schannel) fails with "revocation status is unknown" against the pr
 
 ## D22. License
 Apache-2.0. The copyright holder is written as "The kube-onramp Authors" (in `NOTICE` and the README), so no personal name appears in the repo.
+
+## D23. kubelogin's version comes from kube-onramp's install record (replaces part of D4)
+D4 said that only some builds print an empty version. That was wrong: the official v1.36.4 release binaries print `kubelogin version  (go1.26.6 …)`, because they are built with `-ldflags "-X main.version="`. Their Go build info has `vcs.revision=4d0d2336…`, which is the `v1.36.4` tag (checked with the GitHub API); the winget copy on Machine C has the same revision. So: a copy that prints no version counts as kube-onramp's pinned version only if its SHA-256 matches the hash recorded in `state.json` when kube-onramp installed it. Otherwise it is downloaded again (once). The download itself was already checked against the pinned SHA-256, which is stronger than a version string.
+
+## D24. The run lock is an OS file lock
+`LockFileEx` on Windows, `flock` on macOS/Linux, on `<home>/lock`. When a process dies, the OS releases its lock, so a stale lock can't block later runs. The PID inside the file is only for people.
+
+## D25. A profile context that is already current stays current
+Setup switches the current context to staging only if the current context is not one of the profile's contexts. A student who chose prod keeps prod, and a second run changes nothing.
+
+## D26. Symlinked rc files and kubeconfigs are written through
+Atomic writes replace the file at the path. If `~/.zshrc` or the kubeconfig is a symlink (dotfile managers), kube-onramp writes to the symlink's target, so the link stays a link.
+
+## D27. The clipboard is used only when a person is watching
+The error report is copied to the clipboard only when stdout is a terminal. Scripts, CI and test runs don't overwrite anyone's clipboard. The report file is always saved.
+
+## D28. Extra codes and one extra flag
+- `E-INSTALL`: a verified file could not be put into the bin folder, or the new copy doesn't start (often antivirus).
+- `E-LOGIN-FAILED`: a login failure that is not a timeout, a rejection, busy ports or the network.
+- `--relogin`: forgets kube-onramp's own token cache first. Used when the browser logged in with the wrong account ("You are logged in as …" shows someone else).
+
+## D29. Network preflight only tests hosts the run needs
+Download hosts are tested only for tools that look like they need a download (no own copy, or `state.json` has another version). A run with nothing to install doesn't need GitHub. The OIDC issuer and the API server are tested unless `--skip-login` is given (CI can't rely on reaching the cluster).
+
+## D30. `check`: a different default context or file mode is a warning
+Wrong current context and a world-readable kubeconfig are shown as `[WARN]`. Missing or broken tools, PATH or kubeconfig entries are `[FAIL]` and give exit code 1 with "Run kube-onramp to fix this."
+
+## D31. The rc block prepends to PATH without an "already there?" check
+macOS `path_helper` (in `/etc/zprofile`, login shells) moves inherited PATH entries behind `/usr/local/bin`. A guard like `case ":$PATH:" in *bin*` would then keep Homebrew first in nested login shells. A duplicate entry is harmless; losing to Homebrew is not.
+
+## D32. Login timeouts
+kube-onramp waits up to 5 minutes for `kubectl auth whoami`. kubelogin has its own 180 s authentication timeout (default, v1.36.4), which usually ends first; both become `E-LOGIN-TIMEOUT`. kubelogin prints the login URL only when it can't open a browser ("Please visit the following URL in your browser manually: …"); kube-onramp shows it as "Open this link in your browser".
+
+## D33. Windows minimum is build 19045 (Windows 10 22H2)
+Lower builds get `E-PRE-OS`. 22H2 is the last Windows 10 release, so every supported Windows 10 machine has it.
+
+## D34. Smoke tests compare bytes
+The CI smoke tests start from `internal/kubeconfig/testdata/other.canonical.yaml` (kept in clientcmd's exact output form by a unit test) and an rc file, and require identical bytes after setup + reset. On the Windows runner they test the real `HKCU\Environment`; locally the script uses the throwaway key (D19).
+
+## D35. gosec exclusions
+kube-onramp's job is to read and write the user's files and run their tools. gosec rules G103, G115, G204, G301, G302, G304 and G306 flag exactly that, so they are excluded in `.golangci.yml`, with a reason per rule. Secrets (kubeconfig, state, reports, logs) are still written with mode 600.

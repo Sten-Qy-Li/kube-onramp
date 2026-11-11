@@ -3,6 +3,8 @@
 # Verified 2026-11-11 (docs/DECISIONS.md, D5).
 id: ut-devops
 displayName: University of Tartu DevOps course cluster
+# Used in sentences: "Add the course cluster to your Kubernetes settings".
+clusterNoun: the course cluster
 
 cluster:
   server: https://kubernetes.devops.cs.ut.ee:6443

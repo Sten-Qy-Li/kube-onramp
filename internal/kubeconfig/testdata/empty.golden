@@ -1,0 +1,34 @@
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURCVENDQWUyZ0F3SUJBZ0lJT0lHaVd0ZHQvTDh3RFFZSktvWklodmNOQVFFTEJRQXdGVEVUTUJFR0ExVUUKQXhNS2EzVmlaWEp1WlhSbGN6QWVGdzB5TlRBNU1Ea3hNakUwTlRaYUZ3MHpOVEE1TURjeE1qRTVOVFphTUJVeApFekFSQmdOVkJBTVRDbXQxWW1WeWJtVjBaWE13Z2dFaU1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLCkFvSUJBUUM3OVkzY0wzM2ozSjg0bDZhS0FseEtnVkZMemVLeTZFdnpGSmNhVWtWODlEQStXWlJ6RWdXenQ0aUcKcWNobjZ2UEZlWVBVSWhhQlErYzkweTlaN01nY0ZSMThqRkZKVWxpSndpRXI0VnBmSjZZNzZzNTRzdVhMY1pPSwo0U0k1VW5LM2l4cnM0UkRtR0lVeXlKVndDcndNWkZ6YmlKUnJEa3RsN2ZQOFRMYytqYyt2MWpDT2F2ZUJ2ejZSCjh4M1RYVVZoY2hsYS8wMkNDTjQwRjMrRnVJa2sxbzJvMnVDV2UxQk90MS9xMzlsVXhFTnlyNnpvOVF6WG9mUkwKdjN2NDJSc3hZZC9qd2dQbDJhQVUzUlNWVVdkU0w5V1BmZzI0bFVuYVdqdG1pMytPTDkybEJobjFKOS9QaUZYdAppUVg0TEJ0WEdLSnIwK3VoblRUSHVkSXZKa1dIQWdNQkFBR2pXVEJYTUE0R0ExVWREd0VCL3dRRUF3SUNwREFQCkJnTlZIUk1CQWY4RUJUQURBUUgvTUIwR0ExVWREZ1FXQkJSOGRwNE1UVktUTnBUcWNkS0tpdFdDeEZJdVZEQVYKQmdOVkhSRUVEakFNZ2dwcmRXSmxjbTVsZEdWek1BMEdDU3FHU0liM0RRRUJDd1VBQTRJQkFRQlRGQmlXL0NiMAprYU5hbzFqMzR5RXBWd1ZjSmgrTGNKYVN1WUFENUV1Y1gxYkIzb0ZhOXZCczFxR2MrRmwrNWRPRm41R3BoQWRlCkZXYXpWcUtwdkVkZmVFWUJIQkc3akRHdDdaNDFubk5ueC9FeVdUa3QyeG9icmE1NFQ1ODk1cSsrbCt2VjNZU08KaUJhUmZ5WjVZdTVGOEVPbkw0MU9uRzd3VXJUVE9HMzkwanIybnY4TWpOeU8rTExtUzRSNW1taWszVTlBTU04QQpDUUtRMVhnSVZadGlYd1pLR1lzc0dmQW92RHY5aHdXbmJrWm81d0FHSFdDaE9RcEtkZFNqNDZvQ1pQb1NaTzNoCnFpNVNTVVMxM0d4S0hpUGVNQXA3Zi8wUE1ONUhyUGJYMTRwM20xTXhKM2RlSkR5QUhQQ2Rzb0dGUlNJaHA3L0MKb1JkaTdRWmN1VVN4Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+    server: https://kubernetes.devops.cs.ut.ee:6443
+  name: ut-devops
+contexts:
+- context:
+    cluster: ut-devops
+    namespace: ns-best-team-prod
+    user: ut-devops-oidc
+  name: ut-devops-prod
+- context:
+    cluster: ut-devops
+    namespace: ns-best-team-staging
+    user: ut-devops-oidc
+  name: ut-devops-staging
+current-context: ut-devops-staging
+kind: Config
+users:
+- name: ut-devops-oidc
+  user:
+    exec:
+      apiVersion: client.authentication.k8s.io/v1beta1
+      args:
+      - get-token
+      - --oidc-issuer-url=https://keycloak.hpc.ut.ee/realms/ETAIS
+      - --oidc-client-id=kubernetes.devops.cs.ut.ee
+      - --oidc-pkce-method=auto
+      - --token-cache-dir=/home/test/.kube-onramp/cache/oidc-login
+      command: /home/test/.kube-onramp/bin/kubectl-oidc_login
+      env: null
+      interactiveMode: IfAvailable
+      provideClusterInfo: false
