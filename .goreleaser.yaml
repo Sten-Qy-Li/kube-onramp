@@ -63,6 +63,22 @@ release:
     name: kube-onramp
   # Tags like v0.1.0-rc.1 become pre-releases, so releases/latest skips them.
   prerelease: auto
+  header: |
+    ## Install
+
+    Replace `<team>` with your team name.
+
+    **Windows** (paste into PowerShell as one line):
+    ```powershell
+    [Net.ServicePointManager]::SecurityProtocol = 'Tls12'; & ([scriptblock]::Create((irm https://github.com/Sten-Qy-Li/kube-onramp/releases/download/{{ .Tag }}/install.ps1))) -Team <team>
+    ```
+
+    **macOS** (paste into Terminal):
+    ```sh
+    curl -fsSL https://github.com/Sten-Qy-Li/kube-onramp/releases/download/{{ .Tag }}/install.sh | sh -s -- --team <team>
+    ```
+
+    Every file is listed in `checksums.txt` (SHA-256). See the [README](https://github.com/Sten-Qy-Li/kube-onramp#readme) for what kube-onramp changes and how to undo it.
   extra_files:
     - glob: ./build/scripts/install.ps1
     - glob: ./build/scripts/install.sh

@@ -2,7 +2,7 @@
 
 One command that gets your laptop ready for Kubernetes work on a shared cluster. The first supported cluster is the University of Tartu DevOps course cluster (fall 2026).
 
-> **Status: release candidate.** [v0.1.0-rc.3](https://github.com/Sten-Qy-Li/kube-onramp/releases/tag/v0.1.0-rc.3) is out for testing; v0.1.0 is planned for 15 November 2026. The lines below use `releases/latest`, which works from v0.1.0 on. To test the release candidate, replace `latest/download` with `download/v0.1.0-rc.3` in the line.
+> **Status:** [v0.1.0](https://github.com/Sten-Qy-Li/kube-onramp/releases/tag/v0.1.0) is released. It sets up kubectl, kubelogin and the cluster login. Extra tools (Helm 4, k9s, Trivy, kubeconform, a load generator) are planned for v0.2.0. Test results: [docs/TESTING.md](docs/TESTING.md).
 
 ## What it does
 

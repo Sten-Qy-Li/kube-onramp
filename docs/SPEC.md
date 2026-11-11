@@ -530,6 +530,8 @@ License: Apache-2.0, copyright "The kube-onramp Authors".
 | M1: **v0.1.0** | **Sun Nov 15** | Core flow on Windows and macOS, `check`, `reset`, error reports, bootstrap scripts, GoReleaser release. Teammates test it on Nov 13–15, before Checkpoint 3 on Fri Nov 20 |
 | M2: v0.2.0 | about Sun Nov 22 (Phase 4 starts Nov 23) | Extras (Helm 4, k9s, Trivy, kubeconform, load generator), `--minimal`, prod context checks, `update-catalog` |
 
+**Status (2026-11-11):** M0 done; M1 done, v0.1.0 released, all twelve acceptance tests below pass (results in [TESTING.md](TESTING.md)). M2 not started.
+
 ### Acceptance tests for v0.1 (each must pass)
 1. **Clean Windows (Sandbox):** after the one-liner and login, `kubectl get pods -n ns-<team>-staging` works in a **new** PowerShell window.
 2. **Machine A setup** (Docker Desktop kubectl, winget kubelogin, course kubeconfig):
