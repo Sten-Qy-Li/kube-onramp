@@ -103,11 +103,13 @@ jobs:
           distribution: goreleaser
           version: ${{ env.GORELEASER_VERSION }}
           args: release --snapshot --clean
-      - name: Check the binaries
+      - name: Check the release assets
+        # Raw binaries are uploaded under these names; in dist/ they stay in
+        # their build folders, so check the names in checksums.txt.
         run: |
           set -eu
-          ls -l dist/
-          for f in kube-onramp_windows_amd64.exe kube-onramp_darwin_amd64 kube-onramp_darwin_arm64 kube-onramp_linux_amd64 checksums.txt; do
-            test -f "dist/$f" || { echo "missing dist/$f"; exit 1; }
+          cat dist/checksums.txt
+          for f in kube-onramp_windows_amd64.exe kube-onramp_darwin_amd64 kube-onramp_darwin_arm64 kube-onramp_linux_amd64; do
+            grep -q "  $f\$" dist/checksums.txt || { echo "missing release asset $f"; exit 1; }
           done
-          ./dist/kube-onramp_linux_amd64 version
+          ./dist/kube-onramp_linux_amd64_v1/kube-onramp version
