@@ -46,10 +46,14 @@ func FindURL(line string) (string, bool) {
 	return m[1], true
 }
 
+// kubectl wraps every failure of the exec plugin in this text, also when the
+// plugin only timed out. It says nothing about the network (D39).
+const pluginFailed = "unable to connect to the server: getting credentials"
+
 // Classify maps kubectl/kubelogin output to a result kind. The order matters:
 // network errors also contain "timeout", so they are checked first.
 func Classify(output string, timedOut bool) Kind {
-	o := strings.ToLower(output)
+	o := strings.ReplaceAll(strings.ToLower(output), pluginFailed, "getting credentials")
 	has := func(subs ...string) bool {
 		for _, s := range subs {
 			if strings.Contains(o, s) {

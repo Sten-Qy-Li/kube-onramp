@@ -20,7 +20,16 @@ func TestClassify(t *testing.T) {
 		{"invalid grant", `oauth2: "invalid_grant" "Token is not active"`, false, Rejected},
 		{"port in use (unix)", "error: could not start a local server: listen tcp 127.0.0.1:18000: bind: address already in use", false, Ports},
 		{"port in use (windows)", "listen tcp 127.0.0.1:8000: bind: Only one usage of each socket address (protocol/network address/port) is normally permitted.", false, Ports},
+		// Real output from the Windows Sandbox test (browser closed, rc.2):
+		// kubectl's "Unable to connect to the server" wrapper must not hide the timeout.
+		{"browser closed (sandbox)", "error: get-token: authentication error: authcode-browser error: authentication error: authorization code flow error: oauth2 error: authorization error: authorization error: context deadline exceeded\n" +
+			`Unable to connect to the server: getting credentials: exec: executable ~\AppData\Local\kube-onramp\bin\kubectl-oidc_login.exe failed with exit code 1`, false, TimedOut},
+		{"plugin can't reach the issuer", "error: get-token: oidc discovery error: Get \"https://keycloak.hpc.ut.ee/realms/ETAIS/.well-known/openid-configuration\": dial tcp: lookup keycloak.hpc.ut.ee: no such host\n" +
+			"Unable to connect to the server: getting credentials: exec: executable /x/kubectl-oidc_login failed with exit code 1", false, Network},
+		{"plugin rejected", "error: get-token: oauth2: \"invalid_grant\"\nUnable to connect to the server: getting credentials: exec: executable /x/kubectl-oidc_login failed with exit code 1", false, Rejected},
+		{"plugin failed otherwise", "error: get-token: unknown flag: --foo\nUnable to connect to the server: getting credentials: exec: executable /x/kubectl-oidc_login failed with exit code 1", false, Other},
 		{"cluster down", "Unable to connect to the server: dial tcp 193.40.0.1:6443: i/o timeout", true, Network},
+		{"cluster down, no timeout flag", "Unable to connect to the server: dial tcp 193.40.0.1:6443: connect: connection refused", false, Network},
 		{"dns", "oidc discovery error: Get \"https://keycloak.hpc.ut.ee/realms/ETAIS/.well-known/openid-configuration\": dial tcp: lookup keycloak.hpc.ut.ee: no such host", false, Network},
 		{"other", "error: unknown flag: --oidc-foo", false, Other},
 	}

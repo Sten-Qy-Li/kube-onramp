@@ -119,3 +119,6 @@ Found in acceptance test 5 (2026-11-11): a run killed during the downloads had n
 
 ## D38. install.ps1 also updates the PATH of the current window
 Found in the Windows Sandbox test (acceptance test 1, 2026-11-11): right after the one-liner, `kube-onramp check` in the same window gave "not recognized", because the registry PATH only reaches new windows. Students will try exactly that. install.ps1 runs inside the user's PowerShell session, so after the run it puts the bin folder first in `$env:Path` of that session (and removes it after `-Reset`). On macOS `curl | sh` runs in a child shell, which can't change the parent shell; there the "Open a NEW terminal window" step stays.
+
+## D39. Login errors are classified by kubelogin's own message
+Found in the Windows Sandbox test of a closed browser (acceptance test 9, 2026-11-11): kubelogin reported `context deadline exceeded`, but kube-onramp said `E-CLUSTER-UNREACHABLE`. kubectl wraps every exec-plugin failure in "Unable to connect to the server: getting credentials: …", which matched the network rule first. That wrapper is now ignored, so the plugin's text decides: timeout, rejected, ports, network (for example the issuer can't be reached) or other. The exact Sandbox output is a regression test.
