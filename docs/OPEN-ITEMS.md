@@ -4,6 +4,7 @@ State on 2026-11-23: **v0.1.0 is released** (2026-11-11); all 12 v0.1 acceptance
 
 ## Check around Phase 4 / Checkpoint 4 (mid-December)
 - [ ] **Prod namespace name.** The Week 14 page says `<team-name>-prod`, and ETAIS adds `ns-`, so `ns-<team>-prod` (`namespaces.prod` in `profiles/ut-devops.yaml`) should be right (D46). Confirm it with a real login. If it is wrong, fix the template in the next release.
+  - On 2026-11-23 the maintainer's team had no prod namespace yet: `auth can-i get pods` said `no`, and ETAIS listed only the staging namespace. The Week 13 page doesn't mention it, and the Week 14 page ("Each team has a dedicated production namespace") doesn't say who creates it. So the team creates `<team>-prod` in ETAIS the same way as staging (Week 9), then confirms the name with a real login.
 - [ ] **Before Checkpoint 4:** every team member runs `kube-onramp check`.
 
 ## M2 / v0.2.0 (started 2026-11-23; scope in SPEC §13)
@@ -13,7 +14,7 @@ State on 2026-11-23: **v0.1.0 is released** (2026-11-11); all 12 v0.1 acceptance
 - [x] **Prod:** the profile field `prodRequired`, the code `E-PROD-FORBIDDEN`, and the Phase 4 access checks (D46, D48).
 - [x] **Texts:** summary lines for the extras, the next steps, the error report header, and the README.
 - [x] **Unit and smoke tests** (SPEC §12). The smoke step for the extras runs only in CI (D48). Watch its first CI run: it is the first time the extras actually run.
-- [ ] **Acceptance tests 13–20** (SPEC §13), after an rc exists. Most need Machines A and B or a real login; tests 16 and 17 need a prepared machine or a team without prod access.
+- [ ] **Acceptance tests 13–20** (SPEC §13), after an rc exists. Most need Machines A and B or a real login; tests 16 and 17 need a prepared machine or a team without prod access. Test 17 still works after the prod namespace exists: pass `--prod-namespace` with a namespace that doesn't exist.
 - [x] **rc.1:** `v0.2.0-rc.1` was tagged on 2026-11-23 from `7c97e1d` (CI green, including the extras smoke step). It is a pre-release; `releases/latest` is still v0.1.0.
 - [ ] **Release:** after acceptance tests 13–20 pass, the final `v0.2.0` tag (needs the maintainer's OK). Then record the results in TESTING.md.
 
