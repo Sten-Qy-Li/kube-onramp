@@ -29,8 +29,8 @@ kubeconfig:
     prod: ut-devops-prod
 
 # {team} is the normalized team name. The Week 14 page names the prod
-# namespace <team-name>-prod, and ETAIS adds "ns-" (D46). Still to confirm
-# with a real login.
+# namespace <team-name>-prod, and ETAIS adds "ns-" (D46). Confirmed with a
+# real login on 2026-11-23 (D49).
 namespaces:
   staging: ns-{team}-staging
   prod: ns-{team}-prod

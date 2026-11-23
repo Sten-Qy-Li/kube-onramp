@@ -162,7 +162,7 @@ Both are embedded data files (`go:embed`, YAML or JSON). Adding a tool or a clus
 | Extra kubelogin args | `--oidc-pkce-method=auto` |
 | Exec `apiVersion` | `client.authentication.k8s.io/v1beta1`, as in the course config |
 | Kubeconfig names | cluster `ut-devops`, user `ut-devops-oidc`, contexts `ut-devops-staging` and `ut-devops-prod` |
-| Namespace templates | `ns-{team}-staging`, `ns-{team}-prod`. The Week 14 page (snapshot of 2026-11-23) names the prod namespace `<team-name>-prod`, and ETAIS adds `ns-` in front (Week 9 page), so the template matches. Still to confirm with a real login. Both can be overridden with flags |
+| Namespace templates | `ns-{team}-staging`, `ns-{team}-prod`. The Week 14 page (snapshot of 2026-11-23) names the prod namespace `<team-name>-prod`, and ETAIS adds `ns-` in front (Week 9 page), so the template matches. Confirmed with a real login on 2026-11-23 (D49). Both can be overridden with flags |
 | Team name rule | As the course defines it: lowercase, spaces and underscores become hyphens. `Best_Team` → `best-team` → `ns-best-team-staging`. Also accept a full namespace typed by mistake (`ns-best-team-staging` → `best-team`). Validate as a DNS-1123 label |
 | Access checks (staging) | Required: `get pods`. Informational: `list deployments.apps`, `create deployments.apps`, `create secrets`, `list services`, plus the Phase 4 checks |
 | Access checks (prod) | Required: `get pods`. Informational: the Phase 4 checks |
@@ -560,7 +560,7 @@ License: Apache-2.0, copyright "The kube-onramp Authors".
 | M1: **v0.1.0** | **Sun Nov 15** | Core flow on Windows and macOS, `check`, `reset`, error reports, bootstrap scripts, GoReleaser release. Teammates test it on Nov 13–15, before Checkpoint 3 on Fri Nov 20 |
 | M2: v0.2.0 | early December, before the Week 14 production work; at the latest before Checkpoint 4 (week 16) | kubectl 1.37 (D41); extras (Helm 4, Kustomize, kubeconform, Trivy, k9s, oha) with version rules (D42–D44); extras never block: preflight, `check`, new-terminal check (D45); `prodRequired`, `E-PROD-FORBIDDEN` and the Phase 4 access checks (D46). `update-catalog` moves to later (D47) |
 
-**Status (2026-11-23):** M0 and M1 done: v0.1.0 was released on 2026-11-11, and all twelve v0.1 acceptance tests pass (results in [TESTING.md](TESTING.md)). M2 has started: this spec and DECISIONS.md (D40–D48) are updated, and the catalog, code, unit and smoke tests and README are done. Next: `v0.2.0-rc.1` and the v0.2 acceptance tests.
+**Status (2026-11-23):** M0 and M1 done: v0.1.0 was released on 2026-11-11, and all twelve v0.1 acceptance tests pass (results in [TESTING.md](TESTING.md)). M2 has started: this spec and DECISIONS.md (D40–D49) are updated, and the catalog, code, unit and smoke tests and README are done. `v0.2.0-rc.1` is out, and v0.2 acceptance tests 14–18 and 20 pass. Next: a fix for oha on a clean Windows (D49), then tests 13 and 19.
 
 ### Acceptance tests for v0.1 (each must pass)
 1. **Clean Windows (Sandbox):** after the one-liner and login, `kubectl get pods -n ns-<team>-staging` works in a **new** PowerShell window.
