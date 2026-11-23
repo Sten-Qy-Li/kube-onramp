@@ -203,11 +203,7 @@ func (a *App) recordExisting(in *inspection) {
 // the summary. A failure is only a warning: extras never block cluster
 // access. Extras that preflight skipped are reported here too (D45).
 func (a *App) installExtras(ctx context.Context, in *inspection, actions []plan.Action) {
-	for _, t := range a.cat.ByRole(catalog.RoleExtra) {
-		if p, ok := a.skipped[t.ID]; ok {
-			a.warn(problem.Extra(t.ID, p), t.Name)
-		}
-	}
+	a.reportSkipped()
 	todo := map[string]bool{}
 	for _, act := range actions {
 		if act.Kind == plan.InstallTool {

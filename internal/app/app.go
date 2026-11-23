@@ -64,6 +64,8 @@ type App struct {
 	http    *http.Client
 	now     func() time.Time
 	home    string // the user's home folder
+	// hasSystemFile looks for a file in System32 (catalog "needs", D50).
+	hasSystemFile func(name string) bool
 
 	total  int    // number of steps for this command
 	trying string // for the error report
@@ -74,7 +76,8 @@ type App struct {
 	versions                map[string]string // tool id -> version of the own copy, for the report
 
 	// skipped are the extras that preflight left out (download host not
-	// reachable, or the system is too old), by tool id. Step 8 reports
+	// reachable, the system is too old, or a Windows part is missing, D50),
+	// by tool id. Step 8 of setup and step 2 of check report
 	// them (D45).
 	skipped map[string]*problem.Problem
 	// shellTools are the inspected tools; a new terminal is checked for
@@ -106,9 +109,10 @@ func Run(ctx context.Context, opts Options, version string) (code int) {
 	a := &App{
 		opts: opts, version: version, log: log, red: red, layout: layout,
 		home: home, now: time.Now, http: install.NewHTTPClient(),
-		ui:       ui.New(os.Stdout, os.Stdin, log, opts.NoColor, opts.Verbose),
-		versions: map[string]string{},
-		skipped:  map[string]*problem.Problem{},
+		hasSystemFile: platform.HasSystemFile,
+		ui:            ui.New(os.Stdout, os.Stdin, log, opts.NoColor, opts.Verbose),
+		versions:      map[string]string{},
+		skipped:       map[string]*problem.Problem{},
 	}
 	defer a.keepWindowOpen()
 	defer func() {

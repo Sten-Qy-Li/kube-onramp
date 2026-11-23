@@ -47,6 +47,16 @@ func PreOS(osName, supported string) *Problem {
 		"Use a computer with one of these systems, or ask a TA for help.")
 }
 
+// PreRuntime: a Windows part that a tool needs is missing (D50), for
+// example the Visual C++ runtime that oha needs.
+func PreRuntime(tool, file, pkg, url string) *Problem {
+	return newP("E-PRE-RUNTIME", nil,
+		[]string{tool + " needs the " + pkg + " (the file " + file + ").",
+			"This is a free part of Windows from Microsoft. Many programs need it, but it is not on this computer."},
+		"Install the "+pkg+" from Microsoft (you need admin rights for this): "+url,
+		"Then run kube-onramp again.")
+}
+
 // PreWSL: running inside WSL instead of on Windows itself.
 func PreWSL() *Problem {
 	return newP("E-PRE-WSL", nil,
@@ -227,6 +237,11 @@ func Extra(tool string, cause error) *Problem {
 		return newP(code, cause,
 			[]string{"The extra tool " + tool + " needs a newer system, so kube-onramp skipped it. Your cluster access is not affected."},
 			"To use "+tool+", update your system, then run kube-onramp again.")
+	}
+	if errors.As(cause, &p) && p.Code == "E-PRE-RUNTIME" {
+		// Trying again won't help until the missing part is installed (D50).
+		lines := append([]string{"The extra tool " + tool + " can't run on this computer yet, so kube-onramp skipped it. Your cluster access is not affected."}, p.Lines...)
+		return newP(code, cause, lines, p.Next...)
 	}
 	return newP(code, cause,
 		[]string{"The extra tool " + tool + " could not be installed. Your cluster access is not affected."},

@@ -131,15 +131,11 @@ func (a *App) preflightNetwork(ctx context.Context, tools []*catalog.Tool, clust
 	var checks []check
 	var found []toolProblem
 	for _, t := range tools {
-		art, ok := t.Artifact(runtime.GOOS, runtime.GOARCH)
-		if !ok {
-			found = append(found, toolProblem{t, problem.PreOS(a.info.Name, "a system that "+t.Name+" supports")})
+		if p := toolSystemProblem(t, runtime.GOOS, runtime.GOARCH, a.info, a.hasSystemFile); p != nil {
+			found = append(found, toolProblem{t, p})
 			continue
 		}
-		if supported, err := art.SupportsOS(a.info.Version); err == nil && !supported {
-			found = append(found, toolProblem{t, problem.PreOS(a.info.Name, t.Name+" "+t.Version+" needs version "+art.MinOS+" or newer")})
-			continue
-		}
+		art, _ := t.Artifact(runtime.GOOS, runtime.GOARCH)
 		url := art.URL
 		checks = append(checks, check{"download " + t.Name, t, func(ctx context.Context) (string, error) {
 			return install.CheckReachable(ctx, a.http, url)
@@ -166,10 +162,12 @@ func (a *App) preflightNetwork(ctx context.Context, tools []*catalog.Tool, clust
 		}()
 	}
 	wg.Wait()
+	netOK := true
 	for i, c := range checks {
 		if errs[i] != nil {
 			a.log.Printf("network check %q failed: %v", c.name, errs[i])
 			found = append(found, toolProblem{c.tool, problem.PreNet(hosts[i], errs[i])})
+			netOK = false
 			continue
 		}
 		a.log.Printf("network check %q: ok", c.name)
@@ -178,13 +176,60 @@ func (a *App) preflightNetwork(ctx context.Context, tools []*catalog.Tool, clust
 	if stop != nil {
 		return stop
 	}
+	a.skipExtras(skip)
+	if len(checks) > 0 && netOK {
+		a.ui.Item(ui.OK, "Network: every server kube-onramp needs can be reached")
+	}
+	return nil
+}
+
+// skipExtras records extras that can't be installed this time; they are
+// left out of the plan and reported at the end (D45).
+func (a *App) skipExtras(skip []toolProblem) {
 	for _, tp := range skip {
 		a.log.Printf("skipping extra %s: %v", tp.tool.ID, tp.p)
 		a.skipped[tp.tool.ID] = tp.p
 		a.ui.Item(ui.Warn, "Extra tool "+tp.tool.Name+": kube-onramp skips it this time. The details come at the end.")
 	}
-	if len(checks) > 0 && len(skip) == 0 {
-		a.ui.Item(ui.OK, "Network: every server kube-onramp needs can be reached")
+}
+
+// reportSkipped shows the details for each skipped extra and adds it to the
+// summary as a warning.
+func (a *App) reportSkipped() {
+	for _, t := range a.cat.ByRole(catalog.RoleExtra) {
+		if p, ok := a.skipped[t.ID]; ok {
+			a.warn(problem.Extra(t.ID, p), t.Name)
+		}
+	}
+}
+
+// skipExtrasThatCannotRun is the part of the preflight tool checks that
+// needs no network, for check: an extra that can't run on this computer is
+// skipped and explained, instead of "Run kube-onramp to fix this" (D50).
+func (a *App) skipExtrasThatCannotRun() {
+	var skip []toolProblem
+	for _, t := range a.toolsToDownload(catalog.RoleExtra) {
+		if p := toolSystemProblem(t, runtime.GOOS, runtime.GOARCH, a.info, a.hasSystemFile); p != nil {
+			skip = append(skip, toolProblem{t, p})
+		}
+	}
+	a.skipExtras(skip)
+}
+
+// toolSystemProblem says why tool t can't run on this computer, or returns
+// nil: there is no download for this system, the system is too old, or a
+// Windows part it needs is missing (D50). It changes nothing; has looks
+// for a system file.
+func toolSystemProblem(t *catalog.Tool, goos, goarch string, info platform.Info, has func(string) bool) *problem.Problem {
+	art, ok := t.Artifact(goos, goarch)
+	if !ok {
+		return problem.PreOS(info.Name, "a system that "+t.Name+" supports")
+	}
+	if supported, err := art.SupportsOS(info.Version); err == nil && !supported {
+		return problem.PreOS(info.Name, t.Name+" "+t.Version+" needs version "+art.MinOS+" or newer")
+	}
+	if n := art.Needs; n != nil && !has(n.File) {
+		return problem.PreRuntime(t.Name, n.File, n.Package, n.URL)
 	}
 	return nil
 }

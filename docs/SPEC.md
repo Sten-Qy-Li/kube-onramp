@@ -182,10 +182,12 @@ Each entry has:
 - a version command and a regex to parse its output;
 - an **identity check**, so the tool can tell int128 `kubelogin` from Microsoft's unrelated Azure `kubelogin`;
 - an optional **version rule** (`accept`) for other copies found on the machine (section 8.2, check 3): within N minor versions of the API server (kubectl: 1), or a fixed major version (Helm: 4). Without a rule, any copy that runs is acceptable. The code has no tool-specific version logic (D44).
+- on a Windows download, an optional **system file** (`needs`): a DLL that must be in System32, the Microsoft package that puts it there, and its download link. oha needs `vcruntime140.dll` from the Microsoft Visual C++ Redistributable (D49, D50).
 
 Rules for pins:
 - **Two checks for every SHA-256:** against the upstream checksum file, and by hashing the downloaded file. If upstream publishes no checksum file, GitHub's SHA-256 digest of the release asset replaces it (D43).
 - **Minimum OS** comes from the Go version inside the binary (D3). For a binary that is not written in Go, it comes from the binary's own header (PE subsystem version, Mach-O minimum OS), read without running the file, or from the toolchain's documented minimum where there is no such header (D43).
+- **Windows DLLs:** for a binary that is not written in Go, read its import table without running it (Go's `debug/pe`, `ImportedSymbols`). A DLL that is not part of Windows (for example `vcruntime140.dll`) goes into `needs` (D50).
 - **At least 7 days old** when pinned, the same rule as for CI tools (D17, D42).
 
 Also add a maintainer command, for example `go run ./tools/update-catalog`. It looks up the latest upstream versions, fetches upstream checksum files, and rewrites the catalog for review. Pinned hashes (rather than trusting whatever upstream serves at install time) are a supply-chain measure worth calling out in the README.
@@ -258,6 +260,8 @@ Show progress as `Step N of 8: <what>`. The 8 steps are:
    - the API server: `GET /version` using the profile CA. Any HTTP response counts as reachable. Use the result for the version-skew check.
 
    Honor system proxy environment variables. Never disable TLS verification. Only core hosts stop the run; an extra whose host fails is skipped with `W-EXTRA-<tool>` (D45).
+
+   Before the network checks, each tool to download is checked against this computer: a download for this system, the minimum OS version, and the catalog's `needs` file in System32 (D50). A core tool that fails stops the run (`E-PRE-OS` or `E-PRE-RUNTIME`). An extra is skipped with `W-EXTRA-<tool>`, which says what to do (update the system, or install the missing Microsoft package), not "try again later".
 5. **Login ports.** The browser callback needs `127.0.0.1:8000` or `127.0.0.1:18000`. Check that at least one of them is free.
 6. **`KUBECONFIG` environment variable.** If it's set, report it, and follow client-go's rules about which file gets written.
 
@@ -309,10 +313,11 @@ If no team name is known, ask for it once, before the plan. Show an example and 
 **Downloads:**
 1. Download to a temporary file in the tool home.
 2. Verify the SHA-256 against the catalog.
-3. Extract, and set the executable bit on macOS.
-4. Rename into place, so the file appears in one step.
+3. Extract into a folder of its own in the temporary folder, with the tool's real file name, and set the executable bit on macOS.
+4. Run it there (identity and version check). If it doesn't start or is the wrong program, stop with `E-INSTALL` (`W-EXTRA-<tool>` for an extra). Nothing in `bin` changes (D50).
+5. Rename into place, so the file appears in one step.
 
-Interrupting can never leave a half-written file in `bin`. Show a simple percentage while downloading.
+Interrupting can never leave a half-written file in `bin`, and a copy that doesn't start never gets there. Show a simple percentage while downloading.
 
 **PATH on Windows:**
 - Edit `HKCU\Environment\Path` directly. Keep the registry value type (`REG_EXPAND_SZ` or `REG_SZ`) and every existing entry, and **never truncate** (no `setx`).
@@ -392,6 +397,7 @@ Same download, verify and install steps as the core, one tool at a time. Each fa
   - It never installs or changes anything except renewing the login. If the login has expired, it **opens the browser automatically**, after the same notice as in 8.5.
   - If something is broken, it says "Run kube-onramp to fix this." and exits with code 1.
   - It inspects the extras too (D45). A missing, broken or outdated extra is `[WARN]` with "Run kube-onramp to fix this.", but it never causes exit code 1 on its own.
+  - An extra that can't run on this computer (no download for it, the system is too old, or its `needs` file is missing) gets the same `W-EXTRA-<tool>` explanation as in setup, not "Run kube-onramp to fix this.", because a run would not fix it (D50).
   - With `prodRequired`, no access to prod is `[FAIL]` and exit code 1. The last line says that everything works only when nothing failed, prod included.
   - This is the command teammates run 10 minutes before each presentation.
 - **`reset`:** driven by `state.json`.
@@ -444,6 +450,7 @@ Each code has a fixed B1 message and next steps. Define these, and add more as n
 | Code | Meaning |
 |---|---|
 | `E-PRE-OS`, `E-PRE-WSL`, `E-PRE-DISK`, `E-PRE-NET`, `E-PRE-PORTS` | Preflight failures (`E-PRE-NET` names the host it couldn't reach) |
+| `E-PRE-RUNTIME` | A Windows part that a tool needs is missing (the catalog's `needs`, D50). For an extra it is only the cause of `W-EXTRA-<tool>` |
 | `E-BOOT-*` | Bootstrap script failures |
 | `E-DL`, `E-SHA`, `E-EXTRACT` | Download, checksum mismatch, archive problems |
 | `E-INSTALL` | A verified file couldn't be put into the bin folder, or the new copy doesn't start |

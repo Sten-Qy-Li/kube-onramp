@@ -334,6 +334,13 @@ tools:
         size: 7921664
         archive: none
         minOS: "10.0"
+        # The file imports vcruntime140.dll (msvc build without crt-static), which
+        # a clean Windows doesn't have (D49). The link is Microsoft's permalink
+        # for the latest x64 package (learn.microsoft.com, checked 2026-11-23, D50).
+        needs:
+          file: vcruntime140.dll
+          package: Microsoft Visual C++ Redistributable
+          url: https://aka.ms/vc14/vc_redist.x64.exe
       darwin/amd64:
         url: https://github.com/hatoo/oha/releases/download/v1.17.0/oha-macos-amd64
         sha256: c372c87b3273d60aeeb0516f026672bdbcf234638e06ce43a752142c54651ca3

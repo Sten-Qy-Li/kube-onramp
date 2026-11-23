@@ -277,20 +277,28 @@ func (a *App) installTool(ctx context.Context, t *catalog.Tool) *problem.Problem
 		return problem.Download(t.Name, err)
 	}
 	defer func() { _ = os.Remove(dl) }()
-	tmp := filepath.Join(a.layout.Tmp, t.FileName(runtime.GOOS)+".new")
+	// The new copy gets its real file name in a folder of its own, and is
+	// tried there. Only a copy that works goes into the bin folder, so a
+	// broken download never replaces or adds anything (D50).
+	stage := filepath.Join(a.layout.Tmp, t.ID+"-new")
+	if err := os.MkdirAll(stage, 0o755); err != nil {
+		return problem.Install(t.Name, err)
+	}
+	defer func() { _ = os.RemoveAll(stage) }()
+	tmp := filepath.Join(stage, t.FileName(runtime.GOOS))
 	if err := install.Extract(dl, art, tmp); err != nil {
 		return problem.Extract(t.Name, err)
-	}
-	own := filepath.Join(a.layout.Bin, t.FileName(runtime.GOOS))
-	if err := install.Place(tmp, own); err != nil {
-		return problem.Install(t.Name, err)
 	}
 	// The download already matched its pinned SHA-256. Here we only check that
 	// it starts and is the right program. A missing version is accepted
 	// (kubelogin v1.36.4 release builds print none, D23); a wrong one is not.
-	c := inspect.Probe(ctx, t, own)
+	c := inspect.Probe(ctx, t, tmp)
 	if !c.Runs || !c.RightProduct || (c.Version != "" && c.Version != t.Version) {
 		return problem.Install(t.Name, errors.New("the new copy does not start correctly: "+c.Detail))
+	}
+	own := filepath.Join(a.layout.Bin, t.FileName(runtime.GOOS))
+	if err := install.Place(tmp, own); err != nil {
+		return problem.Install(t.Name, err)
 	}
 	sum, err := fsutil.FileSHA256(own)
 	if err != nil {

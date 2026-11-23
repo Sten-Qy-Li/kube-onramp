@@ -38,6 +38,20 @@ func TestEmbeddedCatalogIsValid(t *testing.T) {
 			}
 		}
 	}
+	// Only oha's Windows file needs a part that Windows doesn't always have:
+	// the Visual C++ runtime (D49, D50). The Go tools need nothing.
+	for _, tool := range c.Tools {
+		for p, a := range tool.Platforms {
+			switch {
+			case tool.ID == "oha" && p == "windows/amd64":
+				if a.Needs == nil || a.Needs.File != "vcruntime140.dll" || a.Needs.URL != "https://aka.ms/vc14/vc_redist.x64.exe" {
+					t.Errorf("oha %s needs = %+v, want vcruntime140.dll", p, a.Needs)
+				}
+			case a.Needs != nil:
+				t.Errorf("%s %s needs %+v, want nothing", tool.ID, p, a.Needs)
+			}
+		}
+	}
 	kl, _ := c.Tool("kubelogin")
 	if got := kl.FileName("windows"); got != "kubectl-oidc_login.exe" {
 		t.Errorf("FileName(windows) = %q", got)
@@ -66,6 +80,11 @@ tools:
 `
 
 const hash = "2bc0fbea066016c62cfef307108c303c2f796420d4a5dfc844de6e25d4bc47e0"
+
+const (
+	winMinOS   = `path: demo.exe, minOS: "10.0"`
+	validNeeds = `{file: x.dll, package: X Runtime, url: "https://example.com/x"}`
+)
 
 func TestValidation(t *testing.T) {
 	if _, err := Parse([]byte(validTool)); err != nil {
@@ -102,6 +121,18 @@ func TestValidation(t *testing.T) {
 		{"accept negative skew", "    platforms:", "    accept: {serverMinorSkew: -1}\n    platforms:", "serverMinorSkew"},
 		{"accept unknown rule", "    platforms:", "    accept: {minor: 2}\n    platforms:", "unknown field"},
 		{"duplicate", "tools:\n", "tools:\n  - {id: demo}\n", "twice"},
+		{"needs on macOS", `size: 10, archive: none, minOS: "12.0"}`, `size: 10, archive: none, minOS: "12.0", needs: ` + validNeeds + `}`, "only for Windows"},
+		{"needs not a dll", winMinOS, winMinOS + `, needs: {file: x.exe, package: X, url: "https://example.com/x"}`, "needs.file"},
+		{"needs with a path", winMinOS, winMinOS + `, needs: {file: 'sub\x.dll', package: X, url: "https://example.com/x"}`, "needs.file"},
+		{"needs without package", winMinOS, winMinOS + `, needs: {file: x.dll, package: "", url: "https://example.com/x"}`, "needs.package"},
+		{"needs http url", winMinOS, winMinOS + `, needs: {file: x.dll, package: X, url: "http://example.com/x"}`, "needs.url"},
+		{"needs unknown key", winMinOS, winMinOS + `, needs: {file: x.dll, package: X, url: "https://example.com/x", dir: C}`, "unknown field"},
+	}
+	ok := strings.Replace(validTool, winMinOS, winMinOS+", needs: "+validNeeds, 1)
+	if c, err := Parse([]byte(ok)); err != nil {
+		t.Errorf("valid needs rejected: %v", err)
+	} else if n := c.Tools[0].Platforms["windows/amd64"].Needs; n == nil || n.File != "x.dll" {
+		t.Errorf("needs = %+v", n)
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

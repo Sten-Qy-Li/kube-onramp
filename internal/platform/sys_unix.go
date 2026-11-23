@@ -33,3 +33,7 @@ func EnableColor(f *os.File) bool {
 
 // OwnsConsole is only meaningful on Windows.
 func OwnsConsole() bool { return false }
+
+// HasSystemFile is only meaningful on Windows: the catalog allows "needs"
+// only for Windows downloads (D50).
+func HasSystemFile(string) bool { return true }

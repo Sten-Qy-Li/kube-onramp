@@ -45,6 +45,18 @@ func TestProblems(t *testing.T) {
 	if w := ProdNotYet("ns-x-prod"); !w.IsWarning() || w.Code != "W-PROD-NOT-YET" {
 		t.Errorf("ProdNotYet = %+v", w)
 	}
+	rt := PreRuntime("oha", "vcruntime140.dll", "Microsoft Visual C++ Redistributable", "https://aka.ms/vc14/vc_redist.x64.exe")
+	if rt.Code != "E-PRE-RUNTIME" || rt.IsWarning() || !strings.Contains(rt.Lines[0], "vcruntime140.dll") || !strings.Contains(strings.Join(rt.Next, " "), "https://aka.ms/vc14/vc_redist.x64.exe") {
+		t.Errorf("PreRuntime = %+v", rt)
+	}
+	// Skipped extra with a missing Windows part: say what to install, not
+	// "try again later" (D50).
+	w := Extra("oha", rt)
+	all := strings.Join(append(w.Lines, w.Next...), " ")
+	if w.Code != "W-EXTRA-OHA" || !strings.Contains(w.Lines[0], "skipped") || strings.Contains(all, "later") ||
+		!strings.Contains(all, "Microsoft Visual C++ Redistributable") || !strings.Contains(all, "admin rights") {
+		t.Errorf("Extra with E-PRE-RUNTIME = %+v", w)
+	}
 	if got := Extra("k9s", nil).Code; got != "W-EXTRA-K9S" {
 		t.Errorf("Extra code = %q", got)
 	}

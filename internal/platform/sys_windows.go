@@ -3,6 +3,7 @@ package platform
 import (
 	"errors"
 	"os"
+	"path/filepath"
 
 	"golang.org/x/sys/windows"
 )
@@ -26,4 +27,17 @@ func tryLock(f *os.File) error {
 		return ErrLocked
 	}
 	return err
+}
+
+// HasSystemFile reports whether name is in the Windows System32 folder,
+// where Microsoft's packages put shared DLLs such as vcruntime140.dll (D50).
+// If the folder can't be found, it says yes, so the tool is not skipped
+// without a reason.
+func HasSystemFile(name string) bool {
+	dir, err := windows.GetSystemDirectory()
+	if err != nil {
+		return true
+	}
+	_, err = os.Stat(filepath.Join(dir, name))
+	return err == nil
 }

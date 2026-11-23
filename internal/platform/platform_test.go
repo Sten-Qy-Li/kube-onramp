@@ -91,3 +91,18 @@ func TestFreeDiskBytes(t *testing.T) {
 		t.Errorf("FreeDiskBytes = %d, %v", n, err)
 	}
 }
+
+func TestHasSystemFile(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		if !HasSystemFile("vcruntime140.dll") {
+			t.Error("outside Windows, HasSystemFile must say yes (needs is Windows-only)")
+		}
+		return
+	}
+	if !HasSystemFile("kernel32.dll") {
+		t.Error("kernel32.dll must be in System32")
+	}
+	if HasSystemFile("kube-onramp-no-such-file.dll") {
+		t.Error("a file that doesn't exist was found")
+	}
+}

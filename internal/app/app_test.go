@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/Sten-Qy-Li/kube-onramp/internal/catalog"
+	"github.com/Sten-Qy-Li/kube-onramp/internal/platform"
 	"github.com/Sten-Qy-Li/kube-onramp/internal/problem"
 )
 
@@ -66,5 +67,48 @@ func TestShellNamesComeFromTheCatalog(t *testing.T) {
 	all := shellNames(append(c.ByRole(catalog.RoleCore), c.ByRole(catalog.RoleExtra)...))
 	if got, want := strings.Join(all, ","), "kubectl,kubectl-oidc_login,helm,kustomize,kubeconform,trivy,k9s,oha,kube-onramp"; got != want {
 		t.Errorf("all names = %s, want %s", got, want)
+	}
+}
+
+func TestToolSystemProblem(t *testing.T) {
+	art := catalog.Artifact{MinOS: "10.0"}
+	withNeeds := art
+	withNeeds.Needs = &catalog.SystemFile{File: "vcruntime140.dll", Package: "Microsoft Visual C++ Redistributable", URL: "https://aka.ms/vc14/vc_redist.x64.exe"}
+	oha := &catalog.Tool{ID: "oha", Name: "oha", Version: "1.17.0", Role: catalog.RoleExtra, Platforms: map[string]catalog.Artifact{
+		"windows/amd64": withNeeds,
+		"darwin/amd64":  {MinOS: "10.12"},
+	}}
+	win11 := platform.Info{Name: "Windows 11", Version: "10.0.26100"}
+	oldMac := platform.Info{Name: "macOS 10.11", Version: "10.11.6"}
+	missing := func(string) bool { return false }
+	present := func(string) bool { return true }
+
+	tests := []struct {
+		name     string
+		goos     string
+		info     platform.Info
+		has      func(string) bool
+		wantCode string
+	}{
+		{"DLL present", "windows", win11, present, ""},
+		{"DLL missing", "windows", win11, missing, "E-PRE-RUNTIME"},
+		{"no download for this system", "linux", win11, present, "E-PRE-OS"},
+		{"system too old", "darwin", oldMac, present, "E-PRE-OS"},
+		{"needs is not looked at on macOS", "darwin", platform.Info{Name: "macOS 13", Version: "13.7.8"}, missing, ""},
+	}
+	for _, tt := range tests {
+		p := toolSystemProblem(oha, tt.goos, "amd64", tt.info, tt.has)
+		got := ""
+		if p != nil {
+			got = p.Code
+		}
+		if got != tt.wantCode {
+			t.Errorf("%s: got %q, want %q", tt.name, got, tt.wantCode)
+		}
+	}
+	// Skipped, not stopped: oha is an extra (D45).
+	p := toolSystemProblem(oha, "windows", "amd64", win11, missing)
+	if stop, skip := splitToolProblems([]toolProblem{{oha, p}}); stop != nil || len(skip) != 1 {
+		t.Errorf("a missing DLL for an extra must skip it: stop=%v skip=%d", stop, len(skip))
 	}
 }

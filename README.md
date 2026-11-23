@@ -99,7 +99,7 @@ When something goes wrong, kube-onramp shows an error code, copies a short repor
 | `E-PROD-FORBIDDEN` | (v0.2.0) You are logged in, but you cannot use your team's prod namespace. Check your team name first. If it is right, maybe the prod namespace does not exist yet, or you are not in it yet. Ask the teammate who created it in ETAIS, or a TA. All tools are still installed. |
 | `E-INTERNAL` | A bug in kube-onramp. Send the report. |
 | `W-SHADOW` | Another copy of a program comes first on your PATH, for example Docker Desktop's `kubectl`. If it is too old, update the program that brought it (often Docker Desktop). |
-| `W-EXTRA-<tool>` | (v0.2.0) An extra tool, for example Helm, could not be installed, or your system is too old for it. Your cluster access is not affected. Run kube-onramp again later. |
+| `W-EXTRA-<tool>` | (v0.2.0) An extra tool, for example Helm, could not be installed. Your cluster access is not affected. Read the message: it says what to do. Often you just run kube-onramp again later. If your system is too old, update it. On Windows, `oha` needs the free Microsoft Visual C++ Redistributable. The message gives the download link (you need admin rights to install it). |
 | `W-PROD-NOT-YET` | (v0.1.0) You can't see the prod namespace yet. This is normal before Phase 4. In v0.2.0 this is `E-PROD-FORBIDDEN`. |
 | `W-SKEW` | Your kubectl and the cluster are far apart in version. |
 

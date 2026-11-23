@@ -21,6 +21,9 @@ func (a *App) check(ctx context.Context) int {
 	if p := a.preflightNetwork(ctx, nil, !a.opts.SkipLogin); p != nil {
 		return a.fail(p)
 	}
+	if !a.opts.Minimal {
+		a.skipExtrasThatCannotRun()
+	}
 
 	a.step(2, "Looking at what is installed", "look at what is installed")
 	roles := []catalog.Role{catalog.RoleCore}
@@ -91,6 +94,7 @@ func (a *App) check(ctx context.Context) int {
 	}
 
 	a.step(5, "Final check", "check a new terminal")
+	a.reportSkipped()
 	a.freshShellStep(ctx)
 	a.printSummary()
 	a.ui.Blank()

@@ -98,6 +98,17 @@ type Artifact struct {
 	// MinOS is compared with the OS version: Windows NT version (10.0),
 	// macOS product version (12.0) or Linux kernel version (3.2).
 	MinOS string `json:"minOS"`
+	// Needs is a system file the program needs that the OS doesn't always
+	// have (Windows only, D50). Without it the tool is skipped.
+	Needs *SystemFile `json:"needs,omitempty"`
+}
+
+// SystemFile is a file in the Windows System32 folder that a program needs,
+// and the package from Microsoft that puts it there (D50).
+type SystemFile struct {
+	File    string `json:"file"`    // DLL name, for example vcruntime140.dll
+	Package string `json:"package"` // what the user installs to get it
+	URL     string `json:"url"`     // where to download the package (checked upstream)
 }
 
 var (
@@ -105,6 +116,7 @@ var (
 	versionPattern = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
 	sha256Pattern  = regexp.MustCompile(`^[0-9a-f]{64}$`)
 	dottedPattern  = regexp.MustCompile(`^[0-9]+(\.[0-9]+)*$`)
+	dllPattern     = regexp.MustCompile(`^[A-Za-z0-9_.-]+\.dll$`)
 )
 
 // Load parses the catalog built into the binary.
@@ -205,6 +217,9 @@ func (t *Tool) validate() error {
 		if err := a.validate(t.Version); err != nil {
 			bad("%s: %v", p, err)
 		}
+		if a.Needs != nil && !strings.HasPrefix(p, "windows/") {
+			bad("%s: needs is only for Windows", p)
+		}
 	}
 	return errors.Join(errs...)
 }
@@ -239,6 +254,17 @@ func (a *Artifact) validate(version string) error {
 	}
 	if !dottedPattern.MatchString(a.MinOS) {
 		bad("minOS %q must look like 10.0 or 12.0", a.MinOS)
+	}
+	if n := a.Needs; n != nil {
+		if !dllPattern.MatchString(n.File) {
+			bad("needs.file %q must be a plain .dll file name", n.File)
+		}
+		if n.Package == "" {
+			bad("needs.package is empty")
+		}
+		if u, err := url.Parse(n.URL); err != nil || u.Scheme != "https" || u.Host == "" {
+			bad("needs.url %q must be an https URL", n.URL)
+		}
 	}
 	return errors.Join(errs...)
 }
