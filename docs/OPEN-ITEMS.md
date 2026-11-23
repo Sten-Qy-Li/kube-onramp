@@ -1,6 +1,6 @@
 # Open items
 
-State on 2026-11-23: **v0.1.0 is released** (2026-11-11); all 12 v0.1 acceptance tests pass ([TESTING.md](TESTING.md)). **M2 has started:** SPEC and DECISIONS (D40–D49), the catalog, the code, the unit and smoke tests and the README are done. CI is green with the extras on Windows and macOS, and **`v0.2.0-rc.1` is out** (pre-release). Acceptance tests 14–18 and 20 pass. Next: a fix for oha on a clean Windows (D49), then tests 13 and 19 with the teammates.
+State on 2026-11-23: **v0.1.0 is released** (2026-11-11); all 12 v0.1 acceptance tests pass ([TESTING.md](TESTING.md)). **M2 has started:** SPEC and DECISIONS (D40–D50), the catalog, the code, the unit and smoke tests and the README are done. CI is green with the extras on Windows and macOS, and **`v0.2.0-rc.1` is out** (pre-release). Acceptance tests 14–18 and 20 pass, and **`v0.2.0-rc.2`** (the oha fix, D50) is out. Next: tests 13 and 19 with the teammates, then the final tag.
 
 ## Check around Phase 4 / Checkpoint 4 (mid-December)
 - [x] **Prod namespace name.** Confirmed with a real login on 2026-11-23: `ns-<team>-prod` is right (D49).
@@ -15,7 +15,8 @@ State on 2026-11-23: **v0.1.0 is released** (2026-11-11); all 12 v0.1 acceptance
 - [x] **Texts:** summary lines for the extras, the next steps, the error report header, and the README.
 - [x] **Unit and smoke tests** (SPEC §12). The smoke step for the extras runs only in CI (D48). Watch its first CI run: it is the first time the extras actually run.
 - [ ] **Acceptance tests 13–20** (SPEC §13). On 2026-11-23 with rc.1: 14, 15, 16, 17, 18 and 20 pass ([TESTING.md](TESTING.md)). Still open: 13 and 19 on Machines A and B (the teammates). Test 19 fails on a clean Windows because of oha (next item).
-- [ ] **oha on Windows without the Visual C++ runtime** (D49). oha needs `vcruntime140.dll`, which a clean Windows doesn't have. Then every run shows `W-EXTRA-OHA`, and a second run never says "Everything is already set up". Also: a new copy that fails its test run stays in the bin folder, and the `W-EXTRA` hint says "try again later", which doesn't help here. Fix choice pending with the maintainer, then rc.2.
+- [x] **oha on Windows without the Visual C++ runtime** (D49). Fixed in D50: the catalog field `needs`, the preflight and `check` skip it with clear advice, and new copies are tried before they go into `bin`. Verified in a clean Windows Sandbox ([TESTING.md](TESTING.md)).
+- [x] **rc.2:** `v0.2.0-rc.2` was tagged on 2026-11-23 from `549d7af` (CI green). It contains the D50 fix. It is a pre-release; `releases/latest` is still v0.1.0. Teammates use rc.2 for tests 13 and 19.
 - [x] **rc.1:** `v0.2.0-rc.1` was tagged on 2026-11-23 from `7c97e1d` (CI green, including the extras smoke step). It is a pre-release; `releases/latest` is still v0.1.0.
 - [ ] **Release:** after acceptance tests 13–20 pass, the final `v0.2.0` tag (needs the maintainer's OK). Then record the results in TESTING.md.
 

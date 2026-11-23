@@ -40,7 +40,7 @@ The tests from SPEC section 13 for v0.2. Tests 14 and 17 ran on 2026-11-23 on Ma
 | 16 | Helm v3.22.1 on the system PATH: `W-SHADOW` for helm with "That copy is too old or not the right program" | Windows Sandbox | Pass |
 | 17 | No prod access (`--prod-namespace` with a namespace that doesn't exist): everything installed, then `E-PROD-FORBIDDEN` with a report, exit code 1. `check` exits with 1 and doesn't say "Everything works". The report has no email or home path | Machine C (isolated, real login) | Pass |
 | 18 | `kubeconform.exe` deleted, then `check`: `[WARN]`, "Run kube-onramp to fix this.", exit code 0 | Windows Sandbox | Pass |
-| 19 | Run twice with extras: "Everything is already set up" | CI smoke tests: pass. Windows Sandbox: **fails** because of oha (below) | Open |
+| 19 | Run twice with extras: "Everything is already set up" | CI smoke tests: pass. Windows Sandbox: **fails** with rc.1 because of oha (below), passes with the fix (D50). Machines A and B: waiting for the teammates | Pass in the Sandbox with the fix |
 | 20 | `reset --yes`: bin folder with all extras gone, user PATH back, `state.json` gone. Folders the tools made stay (`%LOCALAPPDATA%\k9s`, `~\.kube`) | Windows Sandbox | Pass |
 
 Also seen with the real login:
@@ -52,6 +52,13 @@ Also seen with the real login:
 - **oha does not start on a clean Windows** (D49). It needs the Visual C++ runtime (`vcruntime140.dll`), which Windows doesn't include. In the Sandbox, every run shows `W-EXTRA-OHA`, and the second run never says "Everything is already set up". Machine C and GitHub's Windows runner have the runtime, so CI didn't see it.
 - **A new copy that fails its test run stays in the bin folder** (`installTool` places it first, then runs it). So the new-terminal check says `[OK]` for oha, and each later run tries to repair it again.
 - **`W-EXTRA-OHA` says "Run kube-onramp again later"**, but trying again doesn't help in this case.
+
+All three are fixed in D50. Checked on 2026-11-23 in a clean Windows Sandbox (no `vcruntime140.dll`) with a local build of `549d7af`:
+- The first setup skips oha before the download. `W-EXTRA-OHA` names the Microsoft Visual C++ Redistributable, gives the link, and says that admin rights are needed. It doesn't say "try again later". The other five extras install, and `[OK] Network` is shown. Exit code 0.
+- A second setup says "Everything is already set up" and changes nothing (bin folder, `state.json`, kubeconfig, user PATH).
+- `check` explains oha, doesn't say "Run kube-onramp to fix this.", says "Everything works" and exits with 0.
+- Then the Sandbox installed the runtime from the link (`vc_redist.x64.exe` 14.52.37029.0, valid Microsoft signature). The next setup shows `[FIXED] oha 1.17.0` with no warning, and the run after that says "Everything is already set up". `reset` removes the bin folder.
+- A unit test checks that a new copy that doesn't start never reaches the bin folder, neither as a new file nor over an older copy. It fails on the old code.
 
 ## Automated tests (every push)
 - Unit tests on Windows, Intel macOS, Apple silicon macOS and Linux.
