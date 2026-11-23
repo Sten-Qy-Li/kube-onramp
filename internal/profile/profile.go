@@ -37,8 +37,11 @@ type Profile struct {
 	Namespaces   Namespaces      `json:"namespaces"`
 	TeamExample  string          `json:"teamExample"`
 	AccessChecks AccessChecks    `json:"accessChecks"`
-	LoginWording string          `json:"loginWording"`
-	HelpLinks    []Link          `json:"helpLinks"`
+	// ProdRequired makes missing prod access a failure (E-PROD-FORBIDDEN)
+	// instead of the warning W-PROD-NOT-YET (D46).
+	ProdRequired bool   `json:"prodRequired"`
+	LoginWording string `json:"loginWording"`
+	HelpLinks    []Link `json:"helpLinks"`
 }
 
 // Cluster is the API server and its CA, as written into the kubeconfig.
@@ -205,6 +208,9 @@ func (p *Profile) Validate() error {
 	}
 	if len(p.AccessChecks.Staging.Required) == 0 {
 		bad("accessChecks.staging.required is empty")
+	}
+	if p.ProdRequired && len(p.AccessChecks.Prod.Required) == 0 {
+		bad("prodRequired is true, but accessChecks.prod.required is empty")
 	}
 	for _, set := range []CheckSet{p.AccessChecks.Staging, p.AccessChecks.Prod} {
 		for _, c := range append(append([]Check{}, set.Required...), set.Informational...) {

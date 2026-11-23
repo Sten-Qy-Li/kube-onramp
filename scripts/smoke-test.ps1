@@ -60,6 +60,40 @@ try {
     $diff = Compare-Object $before (Get-Snapshot)
     Assert-True (-not $diff) "the second run changed something: $($diff | Out-String)"
 
+    # Step 3 of SPEC 12 (v0.2): the extras. This runs the downloaded tools, so
+    # it runs in CI, or locally only with KUBE_ONRAMP_SMOKE_EXTRAS=1. The
+    # tools' own folders go into $work, not into the user profile.
+    if ($env:CI -eq 'true' -or $env:KUBE_ONRAMP_SMOKE_EXTRAS -eq '1') {
+        $env:K9S_LOGS_DIR = Join-Path $work 'k9s-logs'
+        $env:TRIVY_CACHE_DIR = Join-Path $work 'trivy-cache'
+        $env:HELM_CACHE_HOME = Join-Path $work 'helm\cache'
+        $env:HELM_CONFIG_HOME = Join-Path $work 'helm\config'
+        $env:HELM_DATA_HOME = Join-Path $work 'helm\data'
+        $extras = 'helm', 'kustomize', 'kubeconform', 'trivy', 'k9s', 'oha'
+
+        Write-Host '== 2b. setup with the extras'
+        $r = Invoke-Kor $Binary @('--yes', '--skip-login', '--no-color')
+        Assert-True ($r.Code -eq 0) "setup with extras exit code $($r.Code)"
+        Assert-True ($r.Out -notmatch 'W-EXTRA-') 'an extra tool failed (W-EXTRA-*)'
+        foreach ($x in $extras) {
+            Assert-True (Test-Path (Join-Path $env:KUBE_ONRAMP_HOME "bin\$x.exe")) "$x was not installed"
+        }
+
+        Write-Host '== 2c. setup with the extras again: nothing may change'
+        $before = Get-Snapshot
+        $r = Invoke-Kor $Binary @('--yes', '--skip-login', '--no-color')
+        Assert-True ($r.Code -eq 0) "second setup with extras exit code $($r.Code)"
+        Assert-True ($r.Out -match 'Everything is already set up') 'the second run with extras did not say "Everything is already set up"'
+        $diff = Compare-Object $before (Get-Snapshot)
+        Assert-True (-not $diff) "the second run with extras changed something: $($diff | Out-String)"
+        # Each extra must print its own version: this checks the catalog's
+        # version patterns against the real programs (D42).
+        $log = Get-ChildItem (Join-Path $env:KUBE_ONRAMP_HOME 'logs') -Filter '*.log' | Sort-Object LastWriteTimeUtc | Select-Object -Last 1
+        foreach ($x in $extras) {
+            Assert-True (Select-String -LiteralPath $log.FullName -Pattern "$($x): own copy .* prints version `"[0-9]+\.[0-9]+\.[0-9]+`"" -Quiet) "the log has no version printed by $x"
+        }
+    }
+
     Write-Host '== 3. check'
     $r = Invoke-Kor $own @('check', '--skip-login', '--no-color')
     Assert-True ($r.Code -eq 0) "check exit code $($r.Code)"

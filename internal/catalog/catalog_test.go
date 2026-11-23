@@ -98,6 +98,9 @@ func TestValidation(t *testing.T) {
       darwin/arm64`, "path must be empty"},
 		{"bad archive", "archive: tar.gz", "archive: rar", "archive"},
 		{"bad minOS", `minOS: "3.2"`, `minOS: "Ventura"`, "minOS"},
+		{"accept with both rules", "    platforms:", "    accept: {serverMinorSkew: 1, major: 4}\n    platforms:", "not both"},
+		{"accept negative skew", "    platforms:", "    accept: {serverMinorSkew: -1}\n    platforms:", "serverMinorSkew"},
+		{"accept unknown rule", "    platforms:", "    accept: {minor: 2}\n    platforms:", "unknown field"},
 		{"duplicate", "tools:\n", "tools:\n  - {id: demo}\n", "twice"},
 	}
 	for _, tt := range tests {
@@ -159,6 +162,51 @@ func TestParseVersionAndIdentity(t *testing.T) {
 	}
 	if !kubectl.IsRightProduct(tests[0].output) {
 		t.Error("kubectl not recognized")
+	}
+}
+
+func TestAccepts(t *testing.T) {
+	one, four := 1, 4
+	skew := &Tool{Version: "1.37.2", Accept: Accept{ServerMinorSkew: &one}}
+	major := &Tool{Version: "4.3.2", Accept: Accept{Major: &four}}
+	none := &Tool{Version: "5.8.3"}
+	tests := []struct {
+		name            string
+		tool            *Tool
+		version, server string
+		want            bool
+	}{
+		{"skew: same minor", skew, "1.37.0", "v1.37.2", true},
+		{"skew: one behind", skew, "1.36.6", "v1.37.2", true},
+		{"skew: one ahead", skew, "1.38.0", "v1.37.2", true},
+		{"skew: three behind (Docker Desktop on Machine C)", skew, "1.34.1", "v1.37.2", false},
+		{"skew: no server, pinned version used", skew, "1.36.6", "", true},
+		{"skew: no server, too far from pin", skew, "1.35.10", "", false},
+		{"skew: version unknown", skew, "", "v1.37.2", false},
+		{"skew: other major", skew, "2.37.0", "v1.37.2", false},
+		{"major: Helm 4", major, "4.0.1", "", true},
+		{"major: Helm 3", major, "3.19.0", "v1.37.2", false},
+		{"major: version unknown", major, "", "", false},
+		{"no rule: any version", none, "1.0.0", "", true},
+		{"no rule: version unknown", none, "", "", true},
+	}
+	for _, tt := range tests {
+		if got := tt.tool.Accepts(tt.version, tt.server); got != tt.want {
+			t.Errorf("%s: Accepts(%q, %q) = %v, want %v", tt.name, tt.version, tt.server, got, tt.want)
+		}
+	}
+
+	c, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	kubectl, _ := c.Tool("kubectl")
+	helm, _ := c.Tool("helm")
+	if kubectl.Accept.ServerMinorSkew == nil || *kubectl.Accept.ServerMinorSkew != 1 {
+		t.Error("kubectl: want accept.serverMinorSkew 1")
+	}
+	if helm.Accept.Major == nil || *helm.Accept.Major != 4 {
+		t.Error("helm: want accept.major 4")
 	}
 }
 

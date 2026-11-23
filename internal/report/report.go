@@ -32,7 +32,7 @@ func Build(p *problem.Problem, info Info, tail []string, red *Redactor) string {
 	}
 	var b strings.Builder
 	b.WriteString("=== kube-onramp error report (paste this into an AI chatbot) ===\n")
-	b.WriteString("kube-onramp installs kubectl and kubelogin (int128) and sets up OIDC access to a Kubernetes cluster.\n")
+	b.WriteString("kube-onramp installs kubectl, kubelogin (int128) and extra tools (Helm, Kustomize, kubeconform, Trivy, k9s, oha) and sets up OIDC access to a Kubernetes cluster.\n")
 	b.WriteString("Trying to: " + or(p.Trying) + "\n")
 	b.WriteString("Error code: " + p.Code + "\n")
 	if len(p.Lines) > 0 {

@@ -525,7 +525,7 @@ docs/SPEC.md  docs/DECISIONS.md  CLAUDE.md  README.md  LICENSE
 **Smoke test** on `windows-latest` and on an Intel macOS runner. As of 2026-11-11 the Intel runners are `macos-15-intel` and `macos-26-intel`; there is no macOS 13 runner, so Machine B is the only macOS 13 test:
 1. `setup --yes --minimal --skip-login --team ci-test`
 2. Run it again and assert the plan was empty.
-3. (v0.2) `setup --yes --skip-login --team ci-test`, without `--minimal`: every extra is downloaded, verified and found first in a new shell. Run it again and assert the plan was empty.
+3. (v0.2) `setup --yes --skip-login --team ci-test`, without `--minimal`: every extra is downloaded and verified with no `W-EXTRA-*`, and on macOS each one is found first in a new shell. Run it again and assert the plan was empty, and that the log shows a version printed by each extra. This step runs the downloaded tools, so it runs in CI, or locally only with `KUBE_ONRAMP_SMOKE_EXTRAS=1` (D48).
 4. `check --skip-login`
 5. `reset --yes`
 6. Assert the PATH, rc files and kubeconfig are back to their original state, and the bin dir with the extras is gone.
@@ -560,7 +560,7 @@ License: Apache-2.0, copyright "The kube-onramp Authors".
 | M1: **v0.1.0** | **Sun Nov 15** | Core flow on Windows and macOS, `check`, `reset`, error reports, bootstrap scripts, GoReleaser release. Teammates test it on Nov 13–15, before Checkpoint 3 on Fri Nov 20 |
 | M2: v0.2.0 | early December, before the Week 14 production work; at the latest before Checkpoint 4 (week 16) | kubectl 1.37 (D41); extras (Helm 4, Kustomize, kubeconform, Trivy, k9s, oha) with version rules (D42–D44); extras never block: preflight, `check`, new-terminal check (D45); `prodRequired`, `E-PROD-FORBIDDEN` and the Phase 4 access checks (D46). `update-catalog` moves to later (D47) |
 
-**Status (2026-11-23):** M0 and M1 done: v0.1.0 was released on 2026-11-11, and all twelve v0.1 acceptance tests pass (results in [TESTING.md](TESTING.md)). M2 has started: this spec and DECISIONS.md (D40–D47) are updated, and the catalog has kubectl 1.37.2 and the six extras with checked pins. The code and tests are next.
+**Status (2026-11-23):** M0 and M1 done: v0.1.0 was released on 2026-11-11, and all twelve v0.1 acceptance tests pass (results in [TESTING.md](TESTING.md)). M2 has started: this spec and DECISIONS.md (D40–D48) are updated, and the catalog, code, unit and smoke tests and README are done. Next: `v0.2.0-rc.1` and the v0.2 acceptance tests.
 
 ### Acceptance tests for v0.1 (each must pass)
 1. **Clean Windows (Sandbox):** after the one-liner and login, `kubectl get pods -n ns-<team>-staging` works in a **new** PowerShell window.

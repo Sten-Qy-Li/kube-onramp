@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -25,8 +26,16 @@ import (
 	"github.com/Sten-Qy-Li/kube-onramp/internal/ui"
 )
 
-// newShellNames are checked in a new terminal (check 5 and step 8).
-var newShellNames = []string{"kubectl", "kubectl-oidc_login", "kube-onramp"}
+// shellNames are the program names a new terminal is checked for (check 5 and
+// step 8): every inspected catalog tool, then kube-onramp itself. They come
+// from the catalog, not from code (D45).
+func shellNames(tools []*catalog.Tool) []string {
+	names := make([]string, 0, len(tools)+1)
+	for _, t := range tools {
+		names = append(names, t.Binary)
+	}
+	return append(names, "kube-onramp")
+}
 
 // inspection is everything step 2 found.
 type inspection struct {
@@ -43,19 +52,27 @@ type inspection struct {
 // inspectTools runs the five checks for every tool and looks at PATH.
 func (a *App) inspectTools(ctx context.Context, roles ...catalog.Role) (*inspection, *problem.Problem) {
 	in := &inspection{}
+	a.shellTools = nil
+	for _, role := range roles {
+		for _, t := range a.cat.ByRole(role) {
+			if _, skip := a.skipped[t.ID]; skip {
+				a.ui.Say(t.Name + ": skipped this time")
+				continue
+			}
+			a.shellTools = append(a.shellTools, t)
+		}
+	}
 	dirs := pathenv.SplitList(os.Getenv("PATH"), runtime.GOOS)
-	if ns, err := inspect.LookNewShell(ctx, newShellNames); err != nil {
+	if ns, err := inspect.LookNewShell(ctx, shellNames(a.shellTools)); err != nil {
 		a.log.Printf("new-shell lookup: %v", err)
 	} else {
 		dirs = append(dirs, ns.Dirs...)
 		a.log.Printf("new shell PATH: %s", strings.Join(ns.Dirs, string(os.PathListSeparator)))
 	}
-	for _, role := range roles {
-		for _, t := range a.cat.ByRole(role) {
-			r := inspect.InspectTool(ctx, t, a.layout.Bin, a.st, dirs)
-			in.tools = append(in.tools, r)
-			a.describeTool(r)
-		}
+	for _, t := range a.shellTools {
+		r := inspect.InspectTool(ctx, t, a.layout.Bin, a.st, dirs)
+		in.tools = append(in.tools, r)
+		a.describeTool(r)
 	}
 
 	var err error
@@ -90,7 +107,7 @@ func (a *App) describeTool(r inspect.Tool) {
 	case plan.ToolBroken:
 		a.ui.Say(t.Name + ": kube-onramp's copy is broken and will be downloaded again")
 	}
-	a.log.Printf("%s: own copy %s: %s", t.ID, r.OwnPath, r.Reason)
+	a.log.Printf("%s: own copy %s prints version %q: %s", t.ID, r.OwnPath, r.Printed, r.Reason)
 	for _, o := range r.Others {
 		v := o.Version
 		if v == "" {
@@ -481,11 +498,59 @@ func (a *App) accessStep(ctx context.Context) *problem.Problem {
 	}
 	a.ui.Item(ui.OK, "You can use the namespace "+a.stagingNS)
 	a.note(ui.OK, "Access to "+a.stagingNS)
+	a.showInformational(ctx, kubectl, a.prof.Kubeconfig.Contexts.Staging, a.stagingNS, checks.Staging.Informational)
+
+	if len(checks.Prod.Required) > 0 {
+		prodOK := true
+		for _, r := range access.Run(ctx, kubectl, a.prof.Kubeconfig.Contexts.Prod, a.prodNS, checks.Prod.Required) {
+			if r.Err != nil || !r.Allowed {
+				prodOK = false
+				a.log.Printf("prod can-i %s: allowed=%v err=%v", r.Text(), r.Allowed, r.Err)
+			}
+		}
+		if prodOK {
+			a.ui.Item(ui.OK, "You can use the namespace "+a.prodNS)
+			a.note(ui.OK, "Access to "+a.prodNS)
+			a.showInformational(ctx, kubectl, a.prof.Kubeconfig.Contexts.Prod, a.prodNS, checks.Prod.Informational)
+		} else if p := prodProblem(a.prof.ProdRequired, a.prodNS); p.IsWarning() {
+			a.warn(p, "Access to "+a.prodNS)
+		} else {
+			// Shown at the very end, so step 8 still runs (D46).
+			p.Trying = a.trying
+			a.pending = p
+			a.ui.Item(ui.Fail, "You cannot use the namespace "+a.prodNS+" ("+p.Code+"). The details come at the end.")
+			a.note(ui.Fail, "Access to "+a.prodNS+" ("+p.Code+")")
+		}
+	}
+
+	if a.serverVersion != "" {
+		for i := range a.cat.Tools {
+			t := &a.cat.Tools[i]
+			if t.Accept.ServerMinorSkew != nil && !t.Accepts(t.Version, a.serverVersion) {
+				a.warn(problem.Skew(t.Name, t.Version, a.serverVersion), t.Name+" version")
+			}
+		}
+	}
+	return nil
+}
+
+// prodProblem is the result of missing prod access: an error when the
+// profile requires prod (E-PROD-FORBIDDEN), otherwise a warning (D46).
+func prodProblem(required bool, namespace string) *problem.Problem {
+	if required {
+		return problem.ProdForbidden(namespace)
+	}
+	return problem.ProdNotYet(namespace)
+}
+
+// showInformational shows the informational can-i checks of one namespace.
+// They never fail the run.
+func (a *App) showInformational(ctx context.Context, kubectl, kubeContext, namespace string, checks []profile.Check) {
 	var can, cannot []string
-	for _, r := range access.Run(ctx, kubectl, a.prof.Kubeconfig.Contexts.Staging, a.stagingNS, checks.Staging.Informational) {
+	for _, r := range access.Run(ctx, kubectl, kubeContext, namespace, checks) {
 		switch {
 		case r.Err != nil:
-			a.log.Printf("can-i %s: %v", r.Text(), r.Err)
+			a.log.Printf("can-i %s in %s: %v", r.Text(), namespace, r.Err)
 		case r.Allowed:
 			can = append(can, r.Text())
 		default:
@@ -498,41 +563,31 @@ func (a *App) accessStep(ctx context.Context) *problem.Problem {
 	if len(cannot) > 0 {
 		a.ui.Say("  You cannot: " + strings.Join(cannot, ", "))
 	}
-
-	prodOK := len(checks.Prod.Required) > 0
-	for _, r := range access.Run(ctx, kubectl, a.prof.Kubeconfig.Contexts.Prod, a.prodNS, checks.Prod.Required) {
-		if r.Err != nil || !r.Allowed {
-			prodOK = false
-			a.log.Printf("prod can-i %s: allowed=%v err=%v", r.Text(), r.Allowed, r.Err)
-		}
-	}
-	if prodOK {
-		a.ui.Item(ui.OK, "You can use the namespace "+a.prodNS)
-		a.note(ui.OK, "Access to "+a.prodNS)
-	} else if len(checks.Prod.Required) > 0 {
-		a.warn(problem.ProdNotYet(a.prodNS), "Access to "+a.prodNS)
-	}
-
-	if own, ok := a.cat.Tool("kubectl"); ok && a.serverVersion != "" {
-		if d, ok := inspect.MinorSkew(own.Version, a.serverVersion); ok && d > 1 {
-			a.warn(problem.Skew(own.Version, a.serverVersion), "kubectl version")
-		}
-	}
-	return nil
 }
 
 // freshShellStep checks what a new terminal runs (step 8).
 func (a *App) freshShellStep(ctx context.Context) {
-	ns, err := inspect.LookNewShell(ctx, newShellNames)
+	names := shellNames(a.shellTools)
+	ns, err := inspect.LookNewShell(ctx, names)
 	if err != nil {
 		a.log.Printf("new-shell check: %v", err)
 		a.ui.Item(ui.Warn, "Could not check a new terminal. Open one and try: kubectl version --client")
 		a.note(ui.Warn, "New terminal not checked")
 		return
 	}
-	for _, name := range newShellNames {
+	byName := map[string]*catalog.Tool{}
+	for _, t := range a.shellTools {
+		byName[t.Binary] = t
+	}
+	for _, name := range names {
 		own := a.ownPath(name)
 		winner := ns.Winners[name]
+		t := byName[name]
+		if t != nil && t.Role == catalog.RoleExtra {
+			if _, err := os.Stat(own); err != nil {
+				continue // not installed; step 8 already warned (W-EXTRA-*)
+			}
+		}
 		switch {
 		case winner != "" && pathenv.SameFile(winner, own, runtime.GOOS):
 			a.ui.Item(ui.OK, "A new terminal runs kube-onramp's "+name)
@@ -543,22 +598,19 @@ func (a *App) freshShellStep(ctx context.Context) {
 			// The kubeconfig calls kube-onramp's copy by its full path.
 			a.ui.Item(ui.OK, "A new terminal finds another "+name+", but your settings use kube-onramp's copy directly")
 		default:
-			a.shadowWarning(ctx, name, winner)
+			a.shadowWarning(ctx, t, name, winner)
 		}
 	}
 }
 
-func (a *App) shadowWarning(ctx context.Context, name, winner string) {
+// shadowWarning reports that another copy wins in a new terminal. The tool's
+// version rule decides whether that copy is acceptable (D44). t is nil for
+// kube-onramp itself.
+func (a *App) shadowWarning(ctx context.Context, t *catalog.Tool, name, winner string) {
 	acceptable := false
-	if t, ok := a.cat.Tool(name); ok {
+	if t != nil {
 		c := inspect.Probe(ctx, t, winner)
-		ref := a.serverVersion
-		if ref == "" {
-			ref = t.Version
-		}
-		if d, ok := inspect.MinorSkew(c.Version, ref); ok && c.RightProduct && d <= 1 {
-			acceptable = true
-		}
+		acceptable = c.Runs && c.RightProduct && t.Accepts(c.Version, a.serverVersion)
 	}
 	hint := "Remove or update the other copy, or ask a TA for help."
 	if strings.Contains(strings.ToLower(winner), "docker") {
@@ -581,13 +633,25 @@ func (a *App) printSummary() {
 func (a *App) printNextSteps() {
 	ctx := a.prof.Kubeconfig.Contexts
 	a.ui.Title("What to do now")
-	a.ui.Say(
+	lines := []string{
 		"1. Open a NEW terminal window.",
 		"2. Try: kubectl get pods",
-		"3. Staging is the default. To use prod: kubectl config use-context "+ctx.Prod,
+	}
+	if !a.opts.Minimal {
+		lines = append(lines,
+			"3. Try: helm version",
+			"   and: kubectl kustomize --help")
+	}
+	n := 3
+	if !a.opts.Minimal {
+		n = 4
+	}
+	lines = append(lines,
+		fmt.Sprintf("%d. Staging is the default. To use prod: kubectl config use-context %s", n, ctx.Prod),
 		"   To go back to staging: kubectl config use-context "+ctx.Staging,
-		"4. Before a presentation, run: kube-onramp check",
+		fmt.Sprintf("%d. Before a presentation, run: kube-onramp check", n+1),
 	)
+	a.ui.Say(lines...)
 	if len(a.prof.HelpLinks) > 0 {
 		a.ui.Title("Help")
 		for _, l := range a.prof.HelpLinks {

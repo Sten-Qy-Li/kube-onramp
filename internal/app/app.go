@@ -72,6 +72,17 @@ type App struct {
 	serverVersion           string // from GET /version, "" if unknown
 	summary                 []item
 	versions                map[string]string // tool id -> version of the own copy, for the report
+
+	// skipped are the extras that preflight left out (download host not
+	// reachable, or the system is too old), by tool id. Step 8 reports
+	// them (D45).
+	skipped map[string]*problem.Problem
+	// shellTools are the inspected tools; a new terminal is checked for
+	// each of them (D45).
+	shellTools []*catalog.Tool
+	// pending is an error that is shown only at the end, so the rest of the
+	// run can still finish (E-PROD-FORBIDDEN, D46).
+	pending *problem.Problem
 }
 
 type item struct {
@@ -97,6 +108,7 @@ func Run(ctx context.Context, opts Options, version string) (code int) {
 		home: home, now: time.Now, http: install.NewHTTPClient(),
 		ui:       ui.New(os.Stdout, os.Stdin, log, opts.NoColor, opts.Verbose),
 		versions: map[string]string{},
+		skipped:  map[string]*problem.Problem{},
 	}
 	defer a.keepWindowOpen()
 	defer func() {

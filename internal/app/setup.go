@@ -161,10 +161,15 @@ func (a *App) setup(ctx context.Context) int {
 
 	// Step 8: extras, then a check in a new terminal, then the summary.
 	a.step(8, "Extra tools and final check", "check a new terminal")
-	a.installExtras(ctx, actions)
+	a.installExtras(ctx, in, actions)
 	a.freshShellStep(ctx)
 	a.printSummary()
 	a.printNextSteps()
+	if a.pending != nil {
+		// For example E-PROD-FORBIDDEN: the laptop is fully set up, but the
+		// run still fails, with the error report (D46).
+		return a.fail(a.pending)
+	}
 	if a.hasFailures() {
 		return ExitFail
 	}
@@ -194,17 +199,32 @@ func (a *App) recordExisting(in *inspection) {
 	}
 }
 
-// installExtras installs optional tools one by one. A failure is only a
-// warning: extras never block cluster access.
-func (a *App) installExtras(ctx context.Context, actions []plan.Action) {
+// installExtras installs optional tools one by one and adds each extra to
+// the summary. A failure is only a warning: extras never block cluster
+// access. Extras that preflight skipped are reported here too (D45).
+func (a *App) installExtras(ctx context.Context, in *inspection, actions []plan.Action) {
+	for _, t := range a.cat.ByRole(catalog.RoleExtra) {
+		if p, ok := a.skipped[t.ID]; ok {
+			a.warn(problem.Extra(t.ID, p), t.Name)
+		}
+	}
+	todo := map[string]bool{}
 	for _, act := range actions {
-		t, ok := a.cat.Tool(act.ToolID)
-		if act.Kind != plan.InstallTool || !ok || t.Role != catalog.RoleExtra {
+		if act.Kind == plan.InstallTool {
+			todo[act.ToolID] = true
+		}
+	}
+	for _, r := range in.tools {
+		t := r.Tool
+		if t.Role != catalog.RoleExtra {
+			continue
+		}
+		if !todo[t.ID] {
+			a.note(ui.OK, t.Name+" "+t.Version)
 			continue
 		}
 		if p := a.installTool(ctx, t); p != nil {
-			w := problem.Extra(t.ID, p)
-			a.warn(w, t.Name)
+			a.warn(problem.Extra(t.ID, p), t.Name)
 			continue
 		}
 		a.note(ui.Fixed, t.Name+" "+t.Version)

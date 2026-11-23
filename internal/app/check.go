@@ -23,7 +23,11 @@ func (a *App) check(ctx context.Context) int {
 	}
 
 	a.step(2, "Looking at what is installed", "look at what is installed")
-	in, p := a.inspectTools(ctx, catalog.RoleCore)
+	roles := []catalog.Role{catalog.RoleCore}
+	if !a.opts.Minimal {
+		roles = append(roles, catalog.RoleExtra) // warnings only (D45)
+	}
+	in, p := a.inspectTools(ctx, roles...)
 	if p != nil {
 		return a.fail(p)
 	}
@@ -34,8 +38,14 @@ func (a *App) check(ctx context.Context) int {
 		return a.fail(p)
 	}
 	actions := a.buildPlan(in)
-	broken := false
+	broken, extrasToFix := false, false
 	for _, act := range actions {
+		if t, ok := a.cat.Tool(act.ToolID); ok && act.Kind == plan.InstallTool && t.Role == catalog.RoleExtra {
+			extrasToFix = true
+			a.ui.Item(ui.Warn, "Extra tool: "+act.Text)
+			a.note(ui.Warn, "Extra tool: "+act.Text)
+			continue
+		}
 		switch act.Kind {
 		case plan.SwitchContext:
 			a.ui.Item(ui.Warn, "The course cluster is not your default. Run: kubectl config use-context "+a.prof.Kubeconfig.Contexts.Staging)
@@ -84,9 +94,17 @@ func (a *App) check(ctx context.Context) int {
 	a.freshShellStep(ctx)
 	a.printSummary()
 	a.ui.Blank()
-	if broken || a.hasFailures() {
+	switch {
+	case a.pending != nil:
+		return a.fail(a.pending) // for example E-PROD-FORBIDDEN (D46)
+	case broken || a.hasFailures():
 		a.ui.Say("Run kube-onramp to fix this.")
 		return ExitFail
+	case extrasToFix:
+		// Extras never cause exit code 1 on their own (D45).
+		a.ui.Say("Your cluster access works, but some extra tools are missing or old.",
+			"Run kube-onramp to fix this.")
+		return ExitOK
 	}
 	a.ui.Say("Everything works. Good luck with your presentation!")
 	return ExitOK

@@ -25,6 +25,22 @@ func TestEmbeddedProfile(t *testing.T) {
 	if got := p.ProdNamespace("best-team"); got != "ns-best-team-prod" {
 		t.Errorf("ProdNamespace = %q", got)
 	}
+	// Phase 4 (D46): prod access is required, and both namespaces check
+	// what Helm, HPA, KEDA and PDBs need.
+	if !p.ProdRequired {
+		t.Error("ProdRequired = false, want true for Phase 4")
+	}
+	for name, set := range map[string]CheckSet{"staging": p.AccessChecks.Staging, "prod": p.AccessChecks.Prod} {
+		have := map[string]bool{}
+		for _, c := range set.Informational {
+			have[c.Verb+" "+c.Resource] = true
+		}
+		for _, want := range []string{"list secrets", "create horizontalpodautoscalers.autoscaling", "create scaledobjects.keda.sh", "create poddisruptionbudgets.policy"} {
+			if !have[want] {
+				t.Errorf("%s informational checks miss %q", name, want)
+			}
+		}
+	}
 }
 
 func TestLoadErrors(t *testing.T) {
@@ -108,6 +124,7 @@ func TestValidate(t *testing.T) {
 		{"template without team", func(p *Profile) { p.Namespaces.Staging = "ns-staging" }, "namespaces.staging"},
 		{"same contexts", func(p *Profile) { p.Kubeconfig.Contexts.Prod = p.Kubeconfig.Contexts.Staging }, "same name"},
 		{"no required checks", func(p *Profile) { p.AccessChecks.Staging.Required = nil }, "required is empty"},
+		{"prod required without checks", func(p *Profile) { p.ProdRequired = true; p.AccessChecks.Prod.Required = nil }, "prodRequired"},
 		{"bad team example", func(p *Profile) { p.TeamExample = "Not OK!" }, "teamExample"},
 		{"http help link", func(p *Profile) { p.HelpLinks = []Link{{Name: "x", URL: "http://x"}} }, "helpLinks"},
 	}

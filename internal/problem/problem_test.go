@@ -30,6 +30,18 @@ func TestProblems(t *testing.T) {
 	if !strings.Contains(p.Lines[0], "github.com") {
 		t.Errorf("PreNet must name the host: %q", p.Lines)
 	}
+	if w := Extra("helm", PreOS("macOS 11", "macOS 13")); w.Code != "W-EXTRA-HELM" || !strings.Contains(w.Lines[0], "newer system") {
+		t.Errorf("Extra with E-PRE-OS = %+v", w)
+	}
+	if w := Extra("helm", PreNet("get.helm.sh", errors.New("timeout"))); w.Code != "W-EXTRA-HELM" || !strings.Contains(w.Lines[0], "could not be installed") {
+		t.Errorf("Extra with E-PRE-NET = %+v", w)
+	}
+	if e := ProdForbidden("ns-x-prod"); e.IsWarning() || e.Code != "E-PROD-FORBIDDEN" || !strings.Contains(e.Lines[0], "ns-x-prod") {
+		t.Errorf("ProdForbidden = %+v", e)
+	}
+	if w := Skew("kubectl", "1.34.1", "1.37.2"); !w.IsWarning() || w.Code != "W-SKEW" || !strings.Contains(w.Lines[0], "kubectl (1.34.1)") {
+		t.Errorf("Skew = %+v", w)
+	}
 	if w := ProdNotYet("ns-x-prod"); !w.IsWarning() || w.Code != "W-PROD-NOT-YET" {
 		t.Errorf("ProdNotYet = %+v", w)
 	}

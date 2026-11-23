@@ -189,3 +189,11 @@ Found while planning M2, by reading the code:
 - Team-specific settings such as `HELM_DRIVER`: the team chooses those, and SPEC §1 rules out course work.
 - A flag to choose extras one by one: SPEC keeps one Enter press, and `--minimal` skips all extras.
 - Docker Desktop's kubectl on the system PATH: no change (D20). `W-SHADOW` still advises updating Docker Desktop.
+
+## D48. How D44–D46 are built, and the smoke test for the extras (2026-11-23)
+- **Errors shown at the end.** `E-PROD-FORBIDDEN` is kept in `App.pending`. Setup and `check` still finish (extras, new-terminal check, summary), then show the error report and exit with code 1.
+- **What stops a run.** `splitToolProblems` decides which preflight problems stop the run (a core tool or a cluster check) and which extras are only skipped. It is a pure function with a unit test.
+- **`W-SKEW` names the tool**, because the rule now comes from the catalog (D44).
+- **`W-EXTRA-<tool>` for an old system** says "needs a newer system" instead of "try again later", because a second run would fail the same way.
+- **The smoke-test step for the extras runs only in CI**, or locally with `KUBE_ONRAMP_SMOKE_EXTRAS=1`. The step runs the downloaded tools. On a developer's machine that needs the maintainer's OK, and k9s and Trivy write folders outside `KUBE_ONRAMP_HOME`. The step points those folders into the temporary work folder: `K9S_LOGS_DIR`, `TRIVY_CACHE_DIR` and `HELM_*_HOME` on Windows, and the XDG folders next to the temporary HOME on macOS. (The variable names were checked in each tool's source at the pinned tag.)
+- **The real outputs are checked in CI.** The version patterns came from reading the source, not from running the tools (D42). A wrong pattern would stay hidden, because a copy that prints no version is still accepted through the install record (D23). So the log now records the version each own copy printed, and the smoke test fails if an extra printed none.

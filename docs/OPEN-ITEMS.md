@@ -1,18 +1,19 @@
 # Open items
 
-State on 2026-11-23: **v0.1.0 is released** (2026-11-11); all 12 v0.1 acceptance tests pass ([TESTING.md](TESTING.md)). **M2 has started:** SPEC and DECISIONS (D40–D47) are updated, and the catalog is done. The code and tests are next.
+State on 2026-11-23: **v0.1.0 is released** (2026-11-11); all 12 v0.1 acceptance tests pass ([TESTING.md](TESTING.md)). **M2 has started:** SPEC and DECISIONS (D40–D48), the catalog, the code, the unit and smoke tests and the README are done. Next: a green CI run with the extras, then `v0.2.0-rc.1` and acceptance tests 13–20.
 
 ## Check around Phase 4 / Checkpoint 4 (mid-December)
 - [ ] **Prod namespace name.** The Week 14 page says `<team-name>-prod`, and ETAIS adds `ns-`, so `ns-<team>-prod` (`namespaces.prod` in `profiles/ut-devops.yaml`) should be right (D46). Confirm it with a real login. If it is wrong, fix the template in the next release.
 - [ ] **Before Checkpoint 4:** every team member runs `kube-onramp check`.
 
 ## M2 / v0.2.0 (started 2026-11-23; scope in SPEC §13)
-- [x] **Catalog:** kubectl v1.37.2 (D41) and the six extras (D42, D43), all 28 files checked twice on 2026-11-23. **`main` now installs the extras**, so don't tag a release before the code items below are done.
-- [ ] **Version rules:** the catalog field `accept`, used by inspect, `W-SHADOW` and `W-SKEW` (D44).
-- [ ] **Extras never block:** preflight skips an extra with a warning, `check` inspects the extras, and the new-terminal list comes from the catalog (D45). The code path for extras (`installExtras`, `W-EXTRA-*`, `--minimal`) exists but has never run with real entries.
-- [ ] **Prod:** the profile field `prodRequired`, the code `E-PROD-FORBIDDEN`, and the Phase 4 access checks (D46).
-- [ ] **Texts:** summary lines for the extras, the next steps (`helm version`, `kubectl kustomize --help`), and the error report header (SPEC §8.8, §10).
-- [ ] **Tests and docs:** the unit and smoke tests in SPEC §12, acceptance tests 13–20 (SPEC §13), and the README (tools, sizes, the new download host `get.helm.sh`).
+- [x] **Catalog:** kubectl v1.37.2 (D41) and the six extras (D42, D43), all 28 files checked twice on 2026-11-23. `main` installs the extras: don't tag an rc before CI (with the extras smoke step) is green.
+- [x] **Version rules:** the catalog field `accept`, used by `W-SHADOW` and `W-SKEW` (D44).
+- [x] **Extras never block:** preflight skips an extra with a warning, `check` inspects the extras, and the new-terminal list comes from the catalog (D45, D48).
+- [x] **Prod:** the profile field `prodRequired`, the code `E-PROD-FORBIDDEN`, and the Phase 4 access checks (D46, D48).
+- [x] **Texts:** summary lines for the extras, the next steps, the error report header, and the README.
+- [x] **Unit and smoke tests** (SPEC §12). The smoke step for the extras runs only in CI (D48). Watch its first CI run: it is the first time the extras actually run.
+- [ ] **Acceptance tests 13–20** (SPEC §13), after an rc exists. Most need Machines A and B or a real login; tests 16 and 17 need a prepared machine or a team without prod access.
 - [ ] **Release:** `v0.2.0-rc.N` for the teammates (Machines A and B); the final `v0.2.0` tag needs the maintainer's OK.
 
 ## Nice to have

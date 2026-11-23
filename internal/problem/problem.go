@@ -4,6 +4,7 @@
 package problem
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -194,11 +195,11 @@ func Shadow(name, path string, acceptable bool, hint string) *Problem {
 	return newP("W-SHADOW", nil, lines, hint)
 }
 
-// Skew: kubectl and the server are more than one minor version apart.
-func Skew(client, server string) *Problem {
+// Skew: a tool (kubectl) and the server are too far apart in version.
+func Skew(tool, client, server string) *Problem {
 	return newP("W-SKEW", nil,
-		[]string{"Your kubectl (" + client + ") and the cluster (" + server + ") are far apart in version. Some commands may not work."},
-		"Run kube-onramp to install the right kubectl.")
+		[]string{"Your " + tool + " (" + client + ") and the cluster (" + server + ") are far apart in version. Some commands may not work."},
+		"Run kube-onramp to install the right "+tool+".")
 }
 
 // ProdNotYet: no access to the prod namespace yet (normal before Phase 4).
@@ -208,9 +209,26 @@ func ProdNotYet(namespace string) *Problem {
 			"This is normal before Phase 4 of the course."})
 }
 
-// Extra: an optional tool failed. It never blocks the core.
+// ProdForbidden: logged in, but no access to the prod namespace, when the
+// profile requires it (Phase 4, D46).
+func ProdForbidden(namespace string) *Problem {
+	return newP("E-PROD-FORBIDDEN", nil,
+		[]string{"You are logged in, but you cannot use the namespace " + namespace + "."},
+		"Check your team name. Run again with: kube-onramp --team <your-team>",
+		"If the name is right, maybe the prod namespace does not exist yet, or you are not in it yet. Ask the teammate who created it in ETAIS, or a TA.")
+}
+
+// Extra: an optional tool failed or was skipped. It never blocks the core.
 func Extra(tool string, cause error) *Problem {
-	return newP("W-EXTRA-"+strings.ToUpper(tool), cause,
+	code := "W-EXTRA-" + strings.ToUpper(tool)
+	var p *Problem
+	if errors.As(cause, &p) && p.Code == "E-PRE-OS" {
+		// Trying again won't help; the system is too old for this tool (D45).
+		return newP(code, cause,
+			[]string{"The extra tool " + tool + " needs a newer system, so kube-onramp skipped it. Your cluster access is not affected."},
+			"To use "+tool+", update your system, then run kube-onramp again.")
+	}
+	return newP(code, cause,
 		[]string{"The extra tool " + tool + " could not be installed. Your cluster access is not affected."},
 		"Run kube-onramp again later to try once more.")
 }

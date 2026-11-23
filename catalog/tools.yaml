@@ -23,6 +23,8 @@ tools:
     identity:
       command: [version, --client, -o, json]
       mustMatch: '"clientVersion"'
+    # Another copy must be within one minor version of the server (D44).
+    accept: {serverMinorSkew: 1}
     platforms:
       windows/amd64:
         url: https://dl.k8s.io/release/v1.37.2/bin/windows/amd64/kubectl.exe
@@ -109,6 +111,8 @@ tools:
       # pkg/cmd/root.go, globalUsage: "The Kubernetes package manager"
       command: [--help]
       mustMatch: 'The Kubernetes package manager'
+    # The course uses --rollback-on-failure, a Helm 4 flag (D44).
+    accept: {major: 4}
     platforms:
       windows/amd64:
         url: https://get.helm.sh/helm-v4.3.2-windows-amd64.zip

@@ -64,7 +64,19 @@ type Tool struct {
 	VersionCommand []string            `json:"versionCommand"`
 	VersionRegex   string              `json:"versionRegex"`
 	Identity       Identity            `json:"identity"`
+	Accept         Accept              `json:"accept,omitempty"`
 	Platforms      map[string]Artifact `json:"platforms"`
+}
+
+// Accept is the version rule for other copies of a tool found on the machine
+// (SPEC 8.2, check 3; D44). At most one field is set. With none, any copy
+// that runs is acceptable.
+type Accept struct {
+	// ServerMinorSkew: at most this many minor versions away from the API
+	// server (kubectl: 1).
+	ServerMinorSkew *int `json:"serverMinorSkew,omitempty"`
+	// Major: exactly this major version (Helm: 4).
+	Major *int `json:"major,omitempty"`
 }
 
 // Identity tells the right product apart from unrelated programs with the
@@ -170,6 +182,15 @@ func (t *Tool) validate() error {
 	}
 	if _, err := regexp.Compile(t.Identity.MustNotMatch); err != nil {
 		bad("identity.mustNotMatch does not compile: %v", err)
+	}
+	if t.Accept.ServerMinorSkew != nil && t.Accept.Major != nil {
+		bad("accept: set serverMinorSkew or major, not both")
+	}
+	if n := t.Accept.ServerMinorSkew; n != nil && *n < 0 {
+		bad("accept.serverMinorSkew must be 0 or more")
+	}
+	if n := t.Accept.Major; n != nil && *n < 0 {
+		bad("accept.major must be 0 or more")
 	}
 	for _, p := range RequiredPlatforms {
 		if _, ok := t.Platforms[p]; !ok {
@@ -277,6 +298,51 @@ func (t *Tool) IsRightProduct(output string) bool {
 		return false
 	}
 	return true
+}
+
+// Accepts reports whether another copy with this version is acceptable under
+// the tool's version rule (D44). server is the API server version, or "" if
+// unknown; the pinned version is used instead then. When a rule needs the
+// version and it can't be read, the copy is not acceptable.
+func (t *Tool) Accepts(version, server string) bool {
+	switch {
+	case t.Accept.ServerMinorSkew != nil:
+		ref := server
+		if ref == "" {
+			ref = t.Version
+		}
+		d, ok := MinorSkew(version, ref)
+		return ok && d <= *t.Accept.ServerMinorSkew
+	case t.Accept.Major != nil:
+		major, _, ok := majorMinor(version)
+		return ok && major == *t.Accept.Major
+	}
+	return true
+}
+
+// MinorSkew returns |minor(a) - minor(b)| for versions like "1.36.6", and
+// false if a version can't be read or the major versions differ.
+func MinorSkew(a, b string) (int, bool) {
+	ma, na, ok1 := majorMinor(a)
+	mb, nb, ok2 := majorMinor(b)
+	if !ok1 || !ok2 || ma != mb {
+		return 0, false
+	}
+	d := na - nb
+	if d < 0 {
+		d = -d
+	}
+	return d, true
+}
+
+func majorMinor(v string) (int, int, bool) {
+	parts := strings.SplitN(strings.TrimPrefix(v, "v"), ".", 3)
+	if len(parts) < 2 {
+		return 0, 0, false
+	}
+	ma, err1 := strconv.Atoi(parts[0])
+	mi, err2 := strconv.Atoi(strings.TrimRight(parts[1], "+"))
+	return ma, mi, err1 == nil && err2 == nil
 }
 
 // SupportsOS reports whether an OS version meets the artifact's minimum.

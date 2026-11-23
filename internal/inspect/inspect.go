@@ -11,7 +11,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
@@ -60,6 +59,10 @@ type Tool struct {
 	OwnPath string
 	Own     *Copy // nil if kube-onramp's copy is missing
 	OwnSHA  string
+	// Printed is the version the own copy printed itself ("" if none). The
+	// status may still be OK through the install record (D23); the smoke
+	// tests use this to check the version patterns against the real tools.
+	Printed string
 	Status  plan.ToolStatus
 	Reason  string // why it is not OK, for the log
 	Others  []Copy // other copies found on PATH
@@ -89,6 +92,7 @@ func ownStatus(ctx context.Context, r *Tool, st *state.State) (plan.ToolStatus, 
 	r.OwnSHA = sum
 	c := Probe(ctx, r.Tool, r.OwnPath)
 	r.Own = &c
+	r.Printed = c.Version
 	switch {
 	case !c.Runs:
 		return plan.ToolBroken, "does not run: " + c.Detail
@@ -184,29 +188,9 @@ func LookNewShell(ctx context.Context, names []string) (NewShell, error) {
 }
 
 // MinorSkew returns |minor(a) - minor(b)| for versions like "1.36.6", and
-// false if a version can't be read or the major versions differ.
-func MinorSkew(a, b string) (int, bool) {
-	ma, na, ok1 := majorMinor(a)
-	mb, nb, ok2 := majorMinor(b)
-	if !ok1 || !ok2 || ma != mb {
-		return 0, false
-	}
-	d := na - nb
-	if d < 0 {
-		d = -d
-	}
-	return d, true
-}
-
-func majorMinor(v string) (int, int, bool) {
-	parts := strings.SplitN(strings.TrimPrefix(v, "v"), ".", 3)
-	if len(parts) < 2 {
-		return 0, 0, false
-	}
-	ma, err1 := strconv.Atoi(parts[0])
-	mi, err2 := strconv.Atoi(strings.TrimRight(parts[1], "+"))
-	return ma, mi, err1 == nil && err2 == nil
-}
+// false if a version can't be read or the major versions differ. The logic
+// lives in the catalog, next to the version rules that use it (D44).
+func MinorSkew(a, b string) (int, bool) { return catalog.MinorSkew(a, b) }
 
 func run(ctx context.Context, path string, args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, probeTimeout)

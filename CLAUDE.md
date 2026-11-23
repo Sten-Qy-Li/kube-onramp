@@ -72,7 +72,7 @@ go build -o $env:TEMP\kor\kube-onramp.exe ./cmd/kube-onramp
 ```sh
 go build -o /tmp/kor/kube-onramp ./cmd/kube-onramp && sh scripts/smoke-test.sh /tmp/kor/kube-onramp
 ```
-They download the pinned kubectl and kubelogin (about 70 MB). The real browser login needs a person: run with a temporary `KUBE_ONRAMP_HOME` and `KUBECONFIG`, without `--skip-login`, and ask the maintainer to log in.
+They download the pinned kubectl and kubelogin (about 75 MB). The step with the extra tools (about 140 MB more) runs the downloaded extras, so it runs only in CI, or locally with `KUBE_ONRAMP_SMOKE_EXTRAS=1`. Ask the maintainer before setting that. The real browser login needs a person: run with a temporary `KUBE_ONRAMP_HOME` and `KUBECONFIG`, without `--skip-login`, and ask the maintainer to log in.
 
 ### Release
 `scripts/bake-tag.sh <tag>` writes the tag into `build/scripts/install.*`; the release workflow does this before GoReleaser. `-rc` tags become GitHub pre-releases.

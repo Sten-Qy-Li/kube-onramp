@@ -64,6 +64,38 @@ run "$bin" --yes --minimal --skip-login --no-color
 printf '%s\n' "$out" | grep -q 'Everything is already set up' || fail 'the second run did not say "Everything is already set up"'
 [ "$before" = "$(snapshot)" ] || fail "the second run changed files"
 
+# Step 3 of SPEC 12 (v0.2): the extras. This runs the downloaded tools, so it
+# runs in CI, or locally only with KUBE_ONRAMP_SMOKE_EXTRAS=1. HOME is already
+# temporary; the XDG folders are set too, so the tools' own folders stay in $work.
+if [ "${CI:-}" = true ] || [ "${KUBE_ONRAMP_SMOKE_EXTRAS:-}" = 1 ]; then
+	export XDG_CONFIG_HOME="$work/xdg/config" XDG_CACHE_HOME="$work/xdg/cache" \
+		XDG_DATA_HOME="$work/xdg/data" XDG_STATE_HOME="$work/xdg/state"
+	extras="helm kustomize kubeconform trivy k9s oha"
+
+	echo "== 2b. setup with the extras"
+	run "$bin" --yes --skip-login --no-color
+	[ "$code" = 0 ] || fail "setup with extras exit code $code"
+	if printf '%s\n' "$out" | grep -q 'W-EXTRA-'; then fail "an extra tool failed (W-EXTRA-*)"; fi
+	for x in $extras; do
+		[ -x "$KUBE_ONRAMP_HOME/bin/$x" ] || fail "$x was not installed"
+		printf '%s\n' "$out" | grep -q "A new terminal runs kube-onramp's $x$" || fail "kube-onramp's $x does not win in a new shell"
+	done
+
+	echo "== 2c. setup with the extras again: nothing may change"
+	before=$(snapshot)
+	sleep 1
+	run "$bin" --yes --skip-login --no-color
+	[ "$code" = 0 ] || fail "second setup with extras exit code $code"
+	printf '%s\n' "$out" | grep -q 'Everything is already set up' || fail 'the second run with extras did not say "Everything is already set up"'
+	[ "$before" = "$(snapshot)" ] || fail "the second run with extras changed files"
+	# Each extra must print its own version: this checks the catalog's version
+	# patterns against the real programs (D42).
+	log=$(ls -t "$KUBE_ONRAMP_HOME"/logs/*.log | head -1)
+	for x in $extras; do
+		grep -Eq "$x: own copy .* prints version \"[0-9]+\.[0-9]+\.[0-9]+\"" "$log" || fail "the log has no version printed by $x"
+	done
+fi
+
 echo "== 3. check"
 run "$own" check --skip-login --no-color
 [ "$code" = 0 ] || fail "check exit code $code"

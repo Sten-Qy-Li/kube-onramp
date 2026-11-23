@@ -100,31 +100,59 @@ func (a *App) toolsToDownload(roles ...catalog.Role) []*catalog.Tool {
 	return out
 }
 
+// toolProblem is a preflight problem with one tool; tool is nil for the
+// cluster checks.
+type toolProblem struct {
+	tool *catalog.Tool
+	p    *problem.Problem
+}
+
+// splitToolProblems returns the first problem that must stop the run (a core
+// tool, or a cluster check) and the extras that are only skipped (D45).
+func splitToolProblems(list []toolProblem) (stop *problem.Problem, skip []toolProblem) {
+	for _, tp := range list {
+		if tp.tool == nil || tp.tool.Role != catalog.RoleExtra {
+			return tp.p, nil
+		}
+		skip = append(skip, tp)
+	}
+	return nil, skip
+}
+
 // preflightNetwork checks the OS minimums and that every host the run needs
-// answers. cluster adds the OIDC issuer and the API server.
+// answers. cluster adds the OIDC issuer and the API server. A problem with a
+// core tool or the cluster stops the run; an extra is skipped (D45).
 func (a *App) preflightNetwork(ctx context.Context, tools []*catalog.Tool, cluster bool) *problem.Problem {
 	type check struct {
 		name string
+		tool *catalog.Tool // nil for the cluster checks
 		run  func(context.Context) (host string, err error)
 	}
 	var checks []check
+	var found []toolProblem
 	for _, t := range tools {
 		art, ok := t.Artifact(runtime.GOOS, runtime.GOARCH)
 		if !ok {
-			return problem.PreOS(a.info.Name, "a system that "+t.Name+" supports")
+			found = append(found, toolProblem{t, problem.PreOS(a.info.Name, "a system that "+t.Name+" supports")})
+			continue
 		}
 		if supported, err := art.SupportsOS(a.info.Version); err == nil && !supported {
-			return problem.PreOS(a.info.Name, t.Name+" "+t.Version+" needs version "+art.MinOS+" or newer")
+			found = append(found, toolProblem{t, problem.PreOS(a.info.Name, t.Name+" "+t.Version+" needs version "+art.MinOS+" or newer")})
+			continue
 		}
 		url := art.URL
-		checks = append(checks, check{"download " + t.Name, func(ctx context.Context) (string, error) {
+		checks = append(checks, check{"download " + t.Name, t, func(ctx context.Context) (string, error) {
 			return install.CheckReachable(ctx, a.http, url)
 		}})
 	}
+	// A core tool that can't run here stops the run before any network use.
+	if stop, _ := splitToolProblems(found); stop != nil {
+		return stop
+	}
 	if cluster {
 		checks = append(checks,
-			check{"OIDC issuer", a.checkIssuer},
-			check{"API server", a.checkServer})
+			check{"OIDC issuer", nil, a.checkIssuer},
+			check{"API server", nil, a.checkServer})
 	}
 
 	errs := make([]error, len(checks))
@@ -141,11 +169,21 @@ func (a *App) preflightNetwork(ctx context.Context, tools []*catalog.Tool, clust
 	for i, c := range checks {
 		if errs[i] != nil {
 			a.log.Printf("network check %q failed: %v", c.name, errs[i])
-			return problem.PreNet(hosts[i], errs[i])
+			found = append(found, toolProblem{c.tool, problem.PreNet(hosts[i], errs[i])})
+			continue
 		}
 		a.log.Printf("network check %q: ok", c.name)
 	}
-	if len(checks) > 0 {
+	stop, skip := splitToolProblems(found)
+	if stop != nil {
+		return stop
+	}
+	for _, tp := range skip {
+		a.log.Printf("skipping extra %s: %v", tp.tool.ID, tp.p)
+		a.skipped[tp.tool.ID] = tp.p
+		a.ui.Item(ui.Warn, "Extra tool "+tp.tool.Name+": kube-onramp skips it this time. The details come at the end.")
+	}
+	if len(checks) > 0 && len(skip) == 0 {
 		a.ui.Item(ui.OK, "Network: every server kube-onramp needs can be reached")
 	}
 	return nil

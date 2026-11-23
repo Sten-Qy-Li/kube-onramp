@@ -28,14 +28,21 @@ kubeconfig:
     staging: ut-devops-staging
     prod: ut-devops-prod
 
-# {team} is the normalized team name. The prod namespace appears in Phase 4;
-# confirm its exact name then.
+# {team} is the normalized team name. The Week 14 page names the prod
+# namespace <team-name>-prod, and ETAIS adds "ns-" (D46). Still to confirm
+# with a real login.
 namespaces:
   staging: ns-{team}-staging
   prod: ns-{team}-prod
 
 teamExample: best-team
 
+# Phase 4: every member needs prod access for Checkpoint 4, so missing prod
+# access is E-PROD-FORBIDDEN, not the warning W-PROD-NOT-YET (D46).
+prodRequired: true
+
+# Informational checks never fail a run. The last four in each list are for
+# Phase 4 (D46): Helm's release history (Secrets), HPA, KEDA and PDBs.
 accessChecks:
   staging:
     required:
@@ -45,10 +52,18 @@ accessChecks:
       - {verb: create, resource: deployments.apps}
       - {verb: create, resource: secrets}
       - {verb: list, resource: services}
-  # Prod failures are warnings (W-PROD-NOT-YET) until Phase 4.
+      - {verb: list, resource: secrets}
+      - {verb: create, resource: horizontalpodautoscalers.autoscaling}
+      - {verb: create, resource: scaledobjects.keda.sh}
+      - {verb: create, resource: poddisruptionbudgets.policy}
   prod:
     required:
       - {verb: get, resource: pods}
+    informational:
+      - {verb: list, resource: secrets}
+      - {verb: create, resource: horizontalpodautoscalers.autoscaling}
+      - {verb: create, resource: scaledobjects.keda.sh}
+      - {verb: create, resource: poddisruptionbudgets.policy}
 
 loginWording: your University of Tartu account
 

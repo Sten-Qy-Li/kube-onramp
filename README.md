@@ -2,16 +2,24 @@
 
 One command that gets your laptop ready for Kubernetes work on a shared cluster. The first supported cluster is the University of Tartu DevOps course cluster (fall 2026).
 
-> **Status:** [v0.1.0](https://github.com/Sten-Qy-Li/kube-onramp/releases/tag/v0.1.0) is released. It sets up kubectl, kubelogin and the cluster login. Extra tools (Helm 4, k9s, Trivy, kubeconform, a load generator) are planned for v0.2.0. Test results: [docs/TESTING.md](docs/TESTING.md).
+> **Status:** [v0.1.0](https://github.com/Sten-Qy-Li/kube-onramp/releases/tag/v0.1.0) is released. It sets up kubectl, kubelogin and the cluster login. **v0.2.0 is in progress** (not released yet): it adds the extra tools for Phase 4 and checks your access to the prod namespace. The parts marked "v0.2.0" below are not in v0.1.0. Test results: [docs/TESTING.md](docs/TESTING.md).
 
 ## What it does
 
 - It installs `kubectl` and `kubelogin` (the int128 version). It uses its own copies in its own folder.
+- v0.2.0: it also installs extra tools for Phase 4 of the course:
+  - Helm 4 and Kustomize, for templates;
+  - kubeconform, to check Kubernetes files;
+  - Trivy, to scan container images;
+  - k9s, to watch your pods;
+  - oha, to send test traffic, for example to show autoscaling.
+
+  The extra tools are optional. Add `-Minimal` (Windows) or `--minimal` (macOS) to skip them. If an extra tool fails, you only get a warning. Your cluster access still works.
 - It adds the course cluster to your Kubernetes settings file (the "kubeconfig"). It makes a backup first.
 - It logs you in with your University of Tartu account in the browser.
-- It checks that you can see your team's namespace.
+- It checks that you can use your team's namespaces (v0.2.0: staging and prod).
 
-You can run it again at any time. If everything is already fine, it changes nothing.
+The first run downloads about 75 MB, or about 200 MB with the extra tools. You can run it again at any time. If everything is already fine, it changes nothing.
 
 ## Start
 
@@ -45,7 +53,7 @@ Open a terminal and run:
 kube-onramp check
 ```
 
-It checks your login and your access. If your login is old, the browser opens so you can log in again. It does not install anything.
+It checks your login and your access. If your login is old, the browser opens so you can log in again. It does not install anything. In v0.2.0 it also checks the extra tools. A missing extra tool is only a warning.
 
 If kube-onramp says "You are logged in as" someone else, log out of that account in your browser and run `kube-onramp check --relogin`.
 
@@ -54,7 +62,7 @@ If kube-onramp says "You are logged in as" someone else, log out of that account
 | | Windows | macOS |
 |---|---|---|
 | Its own folder | `%LOCALAPPDATA%\kube-onramp\` | `~/.kube-onramp/` |
-| Programs | `kubectl`, `kubectl-oidc_login`, `kube-onramp` in `bin\` of its folder | the same, in `bin/` |
+| Programs | `kubectl`, `kubectl-oidc_login`, `kube-onramp` in `bin\` of its folder. v0.2.0 also puts `helm`, `kustomize`, `kubeconform`, `trivy`, `k9s` and `oha` there | the same, in `bin/` |
 | PATH (where the terminal looks for programs) | adds its `bin` folder to the start of your user PATH | adds a marked block to `~/.zshrc` (or `~/.bash_profile`) |
 | Kubernetes settings | adds the cluster `ut-devops`, the user `ut-devops-oidc` and the contexts `ut-devops-staging` and `ut-devops-prod` to `~/.kube/config` | the same, and sets the file to mode 600 |
 | Backups | your old `~/.kube/config` is copied to `backups\` in its folder | the same |
@@ -68,6 +76,8 @@ kube-onramp reset
 ```
 
 This removes only what kube-onramp added: its folder (except backups), its PATH entry, and its entries in your Kubernetes settings. It puts your old current context back.
+
+The extra tools are in kube-onramp's folder, so `reset` removes them too. Some tools make their own folders when you use them (for example Helm's settings, the k9s logs and the Trivy database). Those are not kube-onramp's, so they stay.
 
 ## Problems
 
@@ -86,9 +96,11 @@ When something goes wrong, kube-onramp shows an error code, copies a short repor
 | `E-LOGIN-FAILED` | The login failed for another reason. Send the report to a TA. |
 | `E-CLUSTER-UNREACHABLE` | The cluster cannot be reached from your network. Try another network. |
 | `E-ACCESS-FORBIDDEN` | You are logged in, but you cannot see your team's namespace. Check your team name first (`kube-onramp --team <your-team>`). If it is right, ask the teammate who created the namespace in ETAIS, or a TA, for access. |
+| `E-PROD-FORBIDDEN` | (v0.2.0) You are logged in, but you cannot use your team's prod namespace. Check your team name first. If it is right, maybe the prod namespace does not exist yet, or you are not in it yet. Ask the teammate who created it in ETAIS, or a TA. All tools are still installed. |
 | `E-INTERNAL` | A bug in kube-onramp. Send the report. |
-| `W-SHADOW` | Another `kubectl` comes first on your PATH (often Docker Desktop's). If it is too old, update Docker Desktop. |
-| `W-PROD-NOT-YET` | You can't see the prod namespace yet. This is normal before Phase 4. |
+| `W-SHADOW` | Another copy of a program comes first on your PATH, for example Docker Desktop's `kubectl`. If it is too old, update the program that brought it (often Docker Desktop). |
+| `W-EXTRA-<tool>` | (v0.2.0) An extra tool, for example Helm, could not be installed, or your system is too old for it. Your cluster access is not affected. Run kube-onramp again later. |
+| `W-PROD-NOT-YET` | (v0.1.0) You can't see the prod namespace yet. This is normal before Phase 4. In v0.2.0 this is `E-PROD-FORBIDDEN`. |
 | `W-SKEW` | Your kubectl and the cluster are far apart in version. |
 
 "kube-onramp is already running in another window" (exit code 3) means another kube-onramp window is still open. Finish or close it first.
@@ -97,7 +109,8 @@ When something goes wrong, kube-onramp shows an error code, copies a short repor
 
 kube-onramp does not install "whatever is newest" at install time. Every tool has a pinned version and a pinned SHA-256 checksum in [`catalog/tools.yaml`](catalog/tools.yaml). If a download does not match, nothing is installed.
 
-- Each checksum was checked against the upstream checksum file and by hashing the downloaded file.
+- Each checksum was checked against the upstream checksum file and by hashing the downloaded file. oha has no checksum file, so GitHub's own checksum of the release file is used instead.
+- The tools come from `dl.k8s.io` (kubectl), `get.helm.sh` (Helm) and GitHub releases (the others).
 - The release binaries of kube-onramp have a `checksums.txt`. The install scripts check it.
 - CI pins every GitHub Action to a commit SHA, and runs `govulncheck` and a Trivy scan. Trivy runs as a checksum-pinned binary, because the `trivy-action` tags were hijacked in March 2026 ([GHSA-69fq-xp46-6x23](https://github.com/aquasecurity/trivy/security/advisories/GHSA-69fq-xp46-6x23)).
 
