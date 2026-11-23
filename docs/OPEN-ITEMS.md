@@ -29,6 +29,7 @@ State on 2026-11-23: **v0.1.0 is released** (2026-11-11); all 12 v0.1 acceptance
   - Its Docker Desktop (4.69.0, kubectl 1.34.1) came from the Microsoft Store. The Store page says Docker manages the updates, but Docker Desktop's update page points back to the Store, so it can't be updated in place.
   - Docker's release notes: the newest version is 4.100.1. Since 4.96.3 it includes kubectl v1.36.1, which is acceptable for a 1.37 cluster.
   - Docker's install page: the installer's default is now a per-user install (no admin rights), which puts Docker on the user PATH, after kube-onramp's entry. The `W-SHADOW` advice could mention this.
+  - Pitfall seen on Machine C: `Add-Content $PROFILE` doesn't start a new line. A profile whose last line has no line break gets the new text glued onto that line, and both lines break. Write the block on its own lines (like the macOS rc block), and parse-check the profile afterwards. PowerShell 7 and Windows PowerShell 5.1 have separate profiles.
 
 ## Nice to have
 - [ ] `go run ./tools/update-catalog`: the maintainer command that finds new upstream versions and checksums (SPEC 6.2). Moved out of M2 (D47).
