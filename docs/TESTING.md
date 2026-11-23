@@ -60,6 +60,15 @@ All three are fixed in D50. Checked on 2026-11-23 in a clean Windows Sandbox (no
 - Then the Sandbox installed the runtime from the link (`vc_redist.x64.exe` 14.52.37029.0, valid Microsoft signature). The next setup shows `[FIXED] oha 1.17.0` with no warning, and the run after that says "Everything is already set up". `reset` removes the bin folder.
 - A unit test checks that a new copy that doesn't start never reaches the bin folder, neither as a new file nor over an older copy. It fails on the old code.
 
+## Upgrade from v0.1.0 to v0.2.0-rc.2 (Windows Sandbox, 2026-11-23)
+The teammates and Machine C have v0.1 installed, and all other tests started with nothing installed. This test copies what `install.ps1` does: it puts the downloaded exe into `bin\kube-onramp.exe` and runs it from there. Both exes were checked against their release's `checksums.txt`. The Sandbox started with the course kubeconfig (`etais-user@kubernetes`, as on Machine A), without the Visual C++ runtime, and every run used `--team ci-test --yes --skip-login`.
+- v0.1.0 installs kubectl 1.36.6. Then rc.2 plans "Update kubectl to 1.37.2" and the five extras, and skips oha with `W-EXTRA-OHA`. kubelogin stays `[OK]`, exit code 0, no `E-` code.
+- After the upgrade: `bin\kubectl.exe` is v1.37.2, and `bin\kube-onramp.exe` is the rc.2 file (`version` prints rc.2). The state file keeps the team and adds only the new tools. The bin folder is first on the user PATH, and only once. The course entries in the kubeconfig are kept, and the current context is `ut-devops-staging`.
+- The install line again: "Everything is already set up", and nothing changed. `check`: exit code 0, "Everything works".
+- With the runtime installed: oha `[FIXED]`, no warnings. The next run says "Everything is already set up", with no warnings.
+- `reset` after the upgrade: the bin folder is gone, the user PATH is as before v0.1.0, the current context is back to `etais-user@kubernetes` (recorded by v0.1.0), and only kube-onramp's entries are removed.
+- Not covered: the macOS upgrade. Its parts that differ from Windows (the rc block, file modes) are unchanged since v0.1.
+
 ## Automated tests (every push)
 - Unit tests on Windows, Intel macOS, Apple silicon macOS and Linux.
 - End-to-end smoke tests on `windows-latest` and `macos-15-intel`: setup, setup again (no changes), check, reset, everything back byte for byte.

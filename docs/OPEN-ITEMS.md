@@ -14,11 +14,17 @@ State on 2026-11-23: **v0.1.0 is released** (2026-11-11); all 12 v0.1 acceptance
 - [x] **Prod:** the profile field `prodRequired`, the code `E-PROD-FORBIDDEN`, and the Phase 4 access checks (D46, D48).
 - [x] **Texts:** summary lines for the extras, the next steps, the error report header, and the README.
 - [x] **Unit and smoke tests** (SPEC §12). The smoke step for the extras runs only in CI (D48). Watch its first CI run: it is the first time the extras actually run.
-- [ ] **Acceptance tests 13–20** (SPEC §13). On 2026-11-23 with rc.1: 14, 15, 16, 17, 18 and 20 pass ([TESTING.md](TESTING.md)). Still open: 13 and 19 on Machines A and B (the teammates). Test 19 fails on a clean Windows because of oha (next item).
+- [ ] **Acceptance tests 13–20** (SPEC §13). On 2026-11-23 with rc.1: 14, 15, 16, 17, 18 and 20 pass, and the upgrade from v0.1.0 to rc.2 passes in Windows Sandbox ([TESTING.md](TESTING.md)). Still open: 13 and 19 on Machines A and B (the teammates). Test 19 fails on a clean Windows because of oha (next item).
 - [x] **oha on Windows without the Visual C++ runtime** (D49). Fixed in D50: the catalog field `needs`, the preflight and `check` skip it with clear advice, and new copies are tried before they go into `bin`. Verified in a clean Windows Sandbox ([TESTING.md](TESTING.md)).
 - [x] **rc.2:** `v0.2.0-rc.2` was tagged on 2026-11-23 from `549d7af` (CI green). It contains the D50 fix. It is a pre-release; `releases/latest` is still v0.1.0. Teammates use rc.2 for tests 13 and 19.
 - [x] **rc.1:** `v0.2.0-rc.1` was tagged on 2026-11-23 from `7c97e1d` (CI green, including the extras smoke step). It is a pre-release; `releases/latest` is still v0.1.0.
 - [ ] **Release:** after acceptance tests 13–20 pass, the final `v0.2.0` tag (needs the maintainer's OK). Then record the results in TESTING.md.
+
+## After v0.2.0
+- [ ] **Project tools: Node 24, and a check of Git and the GitLab SSH login.** The maintainer's rule (2026-11-23): steps that a tool can do should be done by kube-onramp. This revisits D47. Node is the only real candidate. The rest needs a person's accounts (the SSH key in GitLab), permissions (GitLab role, Grafana), an admin installer (Docker Desktop, Git on macOS), or work inside the team's repository (`npm ci`). For v0.2 these steps stay manual, because the next teammate run is also the acceptance test, with no time for a fix. Open questions:
+  - Node is a folder (node, npm, npx), not one file. It needs a new install type, shims or a second PATH entry, and changes to `reset`.
+  - On Windows, a Node from the official installer is on the system PATH and would still win (the same limit as Docker's kubectl, D20).
+  - Check Node's minimum macOS version upstream against Machine B (macOS 13.7.8).
 
 ## Nice to have
 - [ ] `go run ./tools/update-catalog`: the maintainer command that finds new upstream versions and checksums (SPEC 6.2). Moved out of M2 (D47).
