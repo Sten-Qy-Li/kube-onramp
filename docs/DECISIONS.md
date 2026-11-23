@@ -122,3 +122,58 @@ Found in the Windows Sandbox test (acceptance test 1, 2026-11-11): right after t
 
 ## D39. Login errors are classified by kubelogin's own message
 Found in the Windows Sandbox test of a closed browser (acceptance test 9, 2026-11-11): kubelogin reported `context deadline exceeded`, but kube-onramp said `E-CLUSTER-UNREACHABLE`. kubectl wraps every exec-plugin failure in "Unable to connect to the server: getting credentials: …", which matched the network rule first. That wrapper is now ignored, so the plugin's text decides: timeout, rejected, ports, network (for example the issuer can't be reached) or other. The exact Sandbox output is a regression test.
+
+## D40. Standalone Kustomize is installed as an extra (replaces SPEC §3 "never installed") (2026-11-23)
+The maintainer asked for both templating tools from the Week 13 page, so students are ready whichever one their team picks. `kubectl kustomize` already covers what the course uses (the page: "Kustomize is built into kubectl (version 1.14+)"). The standalone `kustomize` adds `kustomize edit` and a newer release: kube-onramp's kubectl v1.36.6 reports Kustomize v5.8.1, and the latest standalone release is v5.8.3. It costs about 5 MB.
+
+## D41. The kubectl pin moves to v1.37.2 (2026-11-23)
+On 2026-11-23 the cluster answered anonymous `GET /version` with `v1.37.2` (build date 2026-10-27). Upstream v1.37.2 was released on 2026-10-28. v0.1.0's kubectl v1.36.6 is still within ±1, so v0.1.0 users get no `W-SKEW`, but the pin follows the server's minor version (D2). Docker Desktop's kubectl on Machine C (v1.34.1, D20) is now three minors behind. The URL and SHA-256 are checked with the D2 method when the catalog changes.
+
+## D42. Extra tools and their versions (2026-11-23)
+Checked on GitHub (release dates and assets) and on get.helm.sh. Every tool has files for windows/amd64, darwin/amd64, darwin/arm64 and linux/amd64.
+
+| Tool | Version | Released | Files | Upstream checksums | Windows download |
+|---|---|---|---|---|---|
+| Helm | v4.3.2 | 2026-11-13 | get.helm.sh: zip on Windows, tar.gz elsewhere | a `.sha256sum` file per download (also in the release notes) | 20,868,604 bytes |
+| Kustomize | v5.8.3 (tag `kustomize/v5.8.3`) | 2026-10-08 | GitHub: zip on Windows, tar.gz elsewhere | `checksums.txt` | 5,208,138 bytes |
+| kubeconform | v0.8.0 | 2026-06-04 | GitHub: zip on Windows, tar.gz elsewhere | `CHECKSUMS` | 7,615,744 bytes |
+| Trivy | v0.76.2 | 2026-11-05 | GitHub: zip on Windows, tar.gz elsewhere | `trivy_0.76.2_checksums.txt` | 53,905,616 bytes |
+| k9s | v0.51.0 | 2026-06-06 | GitHub: zip on Windows, tar.gz elsewhere | `checksums.sha256` | 42,330,705 bytes |
+| oha | v1.17.0 | 2026-11-14 | GitHub: plain binaries | none (D43) | 7,921,664 bytes |
+
+- Helm v4.3.2's `go.mod` uses `k8s.io/client-go v0.37.2`, the cluster's minor version (D41). Its release history is stored in Secrets unless `HELM_DRIVER` says otherwise (`pkg/action/action.go`, `Configuration.Init`, at v4.3.2).
+- Trivy v0.76.2 is newer than CI's v0.76.1 (D17). Both came out after the March 2026 incident.
+- On 2026-11-23 every version is at least 7 days old (oha is the newest, at 9 days). D17's 7-day rule now covers catalog pins too, because students run these binaries on their laptops.
+- The SHA-256 values are checked with the D2 method when the catalog entries are written, and recorded here then.
+- Together, the extras add about 138 MB to a first run on Windows.
+
+## D43. oha is the load generator, and its checks differ (2026-11-23)
+SPEC asked to check that `oha` suits. It does: one plain binary per platform (`archive: none`), and one command with a live view in the terminal (its README: "realtime tui"). Alternatives: vegeta v12.13.0 is written in Go and has checksums, but its README pipes two commands (`vegeta attack … | vegeta report`), which is harder for students. `npx autocannon` needs Node.js, which kube-onramp doesn't install.
+
+oha differs from the other tools in two ways:
+- **No checksum file upstream.** GitHub publishes its own SHA-256 `digest` for each release asset (GitHub API, `repos/hatoo/oha/releases`). That digest replaces the upstream checksum file; our own hash of the download is still the second check.
+- **It is written in Rust**, so `go version` can't give the minimum OS (D3). It is read from the binary's header with Go's `debug/pe` and `debug/macho` (PE subsystem version, Mach-O minimum OS), without running the file. Linux binaries have no such field; there, the Rust target's documented minimum kernel is used.
+
+Pin the plain builds: the `-pgo` builds exist only for Linux and Windows.
+
+## D44. Version rules live in the catalog (2026-11-23)
+Each tool gets an optional `accept` field: `serverMinorSkew: 1` for kubectl, `major: 4` for Helm, and no rule for the others (any copy that runs). The rule decides whether another copy is acceptable (SPEC 8.2, check 3, and the `W-SHADOW` text), and `W-SKEW` uses it too. In v0.1 the kubectl rule was in the code (the access step and `shadowWarning`), and SPEC's "Helm must be 4.x" was not built. Keeping the rule as data means adding a tool is still only a catalog edit.
+
+## D45. Extras never block: preflight, `check` and the new-terminal check (2026-11-23)
+Found while planning M2, by reading the code:
+- `preflightNetwork` stops the run with `E-PRE-OS` or `E-PRE-NET` for every tool on its list, extras included (`internal/app/preflight.go`). That breaks SPEC §3 ("Extras must never block the core"). Now an extra whose host can't be reached, or whose minimum OS is too high, is skipped with `W-EXTRA-<tool>`.
+- `check` looked only at the core tools, and the new-terminal check used a fixed list (`kubectl`, `kubectl-oidc_login`, `kube-onramp`). Both now take the tools from the catalog. In `check`, a missing or outdated extra is a warning. It never causes exit code 1 on its own.
+
+## D46. Prod access is required in Phase 4, and Phase 4 access checks are added (2026-11-23)
+- The Week 16 page (snapshot of 2026-11-23) says all team members must have access to the cluster, and in Week 14 teams deploy to their prod namespace. v0.1's `check` still said that everything works when prod was forbidden (`W-PROD-NOT-YET`).
+- New profile field `prodRequired`. The UT profile sets it to `true` from v0.2. No access to prod is then `E-PROD-FORBIDDEN`, which is `[FAIL]` and exit code 1. Setup still installs the extras and runs the new-terminal check first, so the laptop is fully set up even when the prod namespace doesn't exist yet. Until a team's prod namespace exists, the run ends red. That is on purpose, because Checkpoint 4 needs prod access.
+- The template stays `ns-{team}-prod`. The Week 14 page says `<team-name>-prod`, and ETAIS adds `ns-` (Week 9 page). This still has to be confirmed with a real login (OPEN-ITEMS).
+- New informational checks in both namespaces: `list secrets` (Helm's release history, D42), `create horizontalpodautoscalers.autoscaling`, `create scaledobjects.keda.sh` and `create poddisruptionbudgets.policy`. They show what a member's own login can do for Weeks 13 and 14, and they never fail the run.
+
+## D47. Left out of M2 (2026-11-23)
+- `update-catalog`: a convenience for the maintainer. This round's pins are checked by hand (D42). It moves to later.
+- Node.js, Git and code editors: they come with system installers, and they are not Kubernetes tools.
+- `psql`, the MinIO client and the AWS CLI: they are for one-off data jobs.
+- Team-specific settings such as `HELM_DRIVER`: the team chooses those, and SPEC §1 rules out course work.
+- A flag to choose extras one by one: SPEC keeps one Enter press, and `--minimal` skips all extras.
+- Docker Desktop's kubectl on the system PATH: no change (D20). `W-SHADOW` still advises updating Docker Desktop.

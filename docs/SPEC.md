@@ -22,7 +22,7 @@ Things it does not ask the user to do:
 
 Design it as a **generic engine** with the UT course as the first **profile** (section 6). It should be a credible, reusable open-source tool, not a one-off script.
 
-**Out of scope:** the tool must never generate course deliverables. That means no Helm charts, Kubernetes manifests, HPA/KEDA configs, CI YAML or Grafana dashboards. It only sets up laptops.
+**Out of scope:** the tool must never generate course deliverables. That means no Helm charts, Kubernetes manifests, HPA/KEDA configs, CI YAML or Grafana dashboards. It also doesn't set team-specific tool settings, such as `HELM_DRIVER`; those are the team's choice. It only sets up laptops.
 
 ---
 
@@ -57,25 +57,29 @@ What this means for the design:
 ### Core (v0.1)
 | Tool | Purpose |
 |---|---|
-| `kubectl` | Pinned to the cluster's minor version. The server reported v1.36.6 on 2026-11-11 (anonymous `GET /version`), so the pin is kubectl v1.36.6 |
+| `kubectl` | Pinned to the cluster's minor version. The server reported v1.36.6 on 2026-11-11 and v1.37.2 on 2026-11-23 (anonymous `GET /version`), so the pin moves from v1.36.6 to v1.37.2 in v0.2 (D41). kubectl includes Kustomize (`kubectl kustomize`) |
 | `kubelogin` (int128) | Installed as `kubectl-oidc_login[.exe]`. Latest stable 1.x (v1.36.4 on 2026-11-11) |
 
 ### Extras (v0.2, installed by default, skipped with `--minimal`)
-| Tool | Why students need it |
-|---|---|
-| Helm **4** (latest 4.x) | Phase 4 templating. The course uses `--rollback-on-failure`, which is a Helm 4 flag. Helm 3 stops getting security patches on Nov 11, 2026 |
-| k9s | Watching pods, HPA scaling and chaos-killed pods live during demos |
-| Trivy | Reproducing the CI image or filesystem scan locally |
-| kubeconform | Reproducing the CI manifest validation locally |
-| `oha` (verify it suits; otherwise propose an alternative) | Generating HTTP load to demo autoscaling |
+The pinned versions, and how they were checked, are in DECISIONS.md (D42, D43).
 
-Extras must never block the core. If an extra fails, show a warning and carry on.
+| Tool | Why students need it | Another copy is acceptable if (8.2, check 3) |
+|---|---|---|
+| Helm **4** (latest 4.x) | Phase 4 templating (Week 13). The course uses `--rollback-on-failure`, which is a Helm 4 flag. Helm 3 stops getting security patches on Nov 11, 2026 | its major version is 4 |
+| Kustomize (standalone) | Phase 4 templating: the other option on the Week 13 page. `kubectl kustomize` already renders overlays; the standalone tool adds `kustomize edit` and a newer release (D40) | it runs |
+| kubeconform | Reproducing the CI manifest validation locally | it runs |
+| Trivy | Reproducing the CI image or filesystem scan locally (Week 15) | it runs |
+| k9s | Watching pods, HPA scaling and chaos-killed pods live during demos | it runs |
+| `oha` | Generating HTTP load to demo autoscaling (Week 14; D43) | it runs |
+
+Extras must never block the core. If an extra fails, show a warning (`W-EXTRA-<tool>`) and carry on. This includes preflight: an extra whose download host can't be reached, or whose minimum OS is above the machine's, is skipped with a warning. It doesn't stop the run (D45).
 
 ### Never installed
 - Lens (GUI app, account, auto-updates);
 - Docker Desktop;
 - ArgoCD and Flux CLIs;
-- standalone Kustomize (it's built into kubectl).
+- Node.js, Git and code editors (they come with system installers, and they are not Kubernetes tools);
+- database and S3 clients (`psql`, the MinIO client, the AWS CLI): they are for one-off data jobs (D47).
 
 Never uninstall or modify software that the tool didn't install.
 
@@ -93,7 +97,7 @@ Never uninstall or modify software that the tool didn't install.
 Build rules:
 - **Go version:** the latest stable release that still supports macOS 13. Per the Go wiki (https://go.dev/wiki/MinimumRequirements), Go 1.27 and later require macOS 13 Ventura or newer. A later Go release will drop macOS 13, so check the wiki before upgrading Go. Pin it in `go.mod` with a `toolchain` line. Pure Go, `CGO_ENABLED=0`. Current pin: `toolchain go1.27.4` (verified 2026-11-11).
 - **No UPX or binary packing.** It increases antivirus false positives.
-- **Catalog check:** each catalog entry records the minimum OS it supports. Preflight refuses to install a tool whose recorded minimum is above the machine's OS version.
+- **Catalog check:** each catalog entry records the minimum OS it supports. Preflight refuses to install a core tool whose recorded minimum is above the machine's OS version. An extra is skipped with `W-EXTRA-<tool>` instead (D45).
 
 ---
 
@@ -158,9 +162,12 @@ Both are embedded data files (`go:embed`, YAML or JSON). Adding a tool or a clus
 | Extra kubelogin args | `--oidc-pkce-method=auto` |
 | Exec `apiVersion` | `client.authentication.k8s.io/v1beta1`, as in the course config |
 | Kubeconfig names | cluster `ut-devops`, user `ut-devops-oidc`, contexts `ut-devops-staging` and `ut-devops-prod` |
-| Namespace templates | `ns-{team}-staging`, `ns-{team}-prod`. The prod namespace appears in Phase 4; confirm its exact name then. Both can be overridden with flags |
+| Namespace templates | `ns-{team}-staging`, `ns-{team}-prod`. The Week 14 page (snapshot of 2026-11-23) names the prod namespace `<team-name>-prod`, and ETAIS adds `ns-` in front (Week 9 page), so the template matches. Still to confirm with a real login. Both can be overridden with flags |
 | Team name rule | As the course defines it: lowercase, spaces and underscores become hyphens. `Best_Team` → `best-team` → `ns-best-team-staging`. Also accept a full namespace typed by mistake (`ns-best-team-staging` → `best-team`). Validate as a DNS-1123 label |
-| Access checks (staging) | Required: `get pods`. Informational: `list deployments.apps`, `create deployments.apps`, `create secrets`, `list services` |
+| Access checks (staging) | Required: `get pods`. Informational: `list deployments.apps`, `create deployments.apps`, `create secrets`, `list services`, plus the Phase 4 checks |
+| Access checks (prod) | Required: `get pods`. Informational: the Phase 4 checks |
+| Phase 4 checks (informational, v0.2) | `list secrets` (Helm keeps its release history in Secrets by default), `create horizontalpodautoscalers.autoscaling`, `create scaledobjects.keda.sh`, `create poddisruptionbudgets.policy` (D46) |
+| Prod required | `prodRequired: true` from v0.2: no access to prod is a failure (`E-PROD-FORBIDDEN`, section 8.6). With `false`, it is the warning `W-PROD-NOT-YET` (D46) |
 | Login wording | "your University of Tartu account" |
 | Help links | course site https://courses.cs.ut.ee/2026/DevOps/fall, ETAIS https://minu.etais.ee, Grafana https://monitoring.kubernetes.devops.cs.ut.ee/ |
 
@@ -173,7 +180,13 @@ Each entry has:
 - for each platform: download URL, archive type, path of the binary inside the archive, **pinned SHA-256**, download size in bytes (for the size estimate in the plan), and minimum OS version;
 - the installed file name without extension (for example `kubectl-oidc_login`); `.exe` is added on Windows;
 - a version command and a regex to parse its output;
-- an **identity check**, so the tool can tell int128 `kubelogin` from Microsoft's unrelated Azure `kubelogin`.
+- an **identity check**, so the tool can tell int128 `kubelogin` from Microsoft's unrelated Azure `kubelogin`;
+- an optional **version rule** (`accept`) for other copies found on the machine (section 8.2, check 3): within N minor versions of the API server (kubectl: 1), or a fixed major version (Helm: 4). Without a rule, any copy that runs is acceptable. The code has no tool-specific version logic (D44).
+
+Rules for pins:
+- **Two checks for every SHA-256:** against the upstream checksum file, and by hashing the downloaded file. If upstream publishes no checksum file, GitHub's SHA-256 digest of the release asset replaces it (D43).
+- **Minimum OS** comes from the Go version inside the binary (D3). For a binary that is not written in Go, it comes from the binary's own header (PE subsystem version, Mach-O minimum OS), read without running the file, or from the toolchain's documented minimum where there is no such header (D43).
+- **At least 7 days old** when pinned, the same rule as for CI tools (D17, D42).
 
 Also add a maintainer command, for example `go run ./tools/update-catalog`. It looks up the latest upstream versions, fetches upstream checksum files, and rewrites the catalog for review. Pinned hashes (rather than trusting whatever upstream serves at install time) are a supply-chain measure worth calling out in the README.
 
@@ -205,7 +218,7 @@ Environment variable `KUBE_ONRAMP_HOME` overrides the tool's home directory (for
 
 Exit codes:
 - `0`: success, possibly with warnings;
-- `1`: a core step failed;
+- `1`: a core step failed (with `prodRequired`, this includes access to the prod namespace);
 - `2`: usage error;
 - `3`: another run is in progress.
 
@@ -244,7 +257,7 @@ Show progress as `Step N of 8: <what>`. The 8 steps are:
    - the OIDC issuer: `GET <issuer>/.well-known/openid-configuration` must return 200;
    - the API server: `GET /version` using the profile CA. Any HTTP response counts as reachable. Use the result for the version-skew check.
 
-   Honor system proxy environment variables. Never disable TLS verification.
+   Honor system proxy environment variables. Never disable TLS verification. Only core hosts stop the run; an extra whose host fails is skipped with `W-EXTRA-<tool>` (D45).
 5. **Login ports.** The browser callback needs `127.0.0.1:8000` or `127.0.0.1:18000`. Check that at least one of them is free.
 6. **`KUBECONFIG` environment variable.** If it's set, report it, and follow client-go's rules about which file gets written.
 
@@ -253,9 +266,10 @@ Show progress as `Step N of 8: <what>`. The 8 steps are:
 For each catalog tool, run five checks:
 1. **Present:** every copy on PATH, plus the tool's own copy.
 2. **Right product:** the identity check.
-3. **Acceptable version:**
+3. **Acceptable version:** kube-onramp's own copy must be the pinned version. Any other copy is judged by the tool's version rule in the catalog (6.2):
    - kubectl must be within ±1 minor of the server;
    - Helm must be 4.x;
+   - the other extras: any version that runs;
    - a tool that prints no version (kubelogin v1.36.4 release builds) counts as the pinned version only if it is kube-onramp's own copy with the SHA-256 recorded at install time (D23).
 4. **Actually runs:** the version command succeeds.
 5. **Wins on PATH in a new terminal.** Compute this for a new shell, not the current process:
@@ -345,22 +359,26 @@ Interrupting can never leave a half-written file in `bin`. Show a simple percent
 
 Run `kubectl auth can-i` against the staging namespace, using the profile's checks.
 - `get pods` must pass. If it's forbidden, raise `E-ACCESS-FORBIDDEN`. Show the exact namespace used, and explain that a wrong team name and "no access yet" look the same. The next steps are: check the name, then ask the person who created the namespace in ETAIS or a TA.
-- For prod: a forbidden or missing namespace is `W-PROD-NOT-YET` (a yellow warning, not red) until Phase 4.
+- For prod, the result depends on the profile's `prodRequired` (D46):
+  - `true` (the UT profile from v0.2): a forbidden or missing namespace is `E-PROD-FORBIDDEN`. Setup still finishes step 8 (extras, new-terminal check, summary). Then it shows the error report and exits with code 1. A missing prod namespace must not leave the laptop half set up.
+  - `false`: it is `W-PROD-NOT-YET` (a yellow warning, not red).
+- The informational checks of both namespaces are shown as "You can: …" and "You cannot: …". They never fail the run.
 
 Also warn with `W-SKEW` if kubectl and the server are more than one minor version apart.
 
 ### 8.7 Apply extras (v0.2; skipped by `--minimal`)
 
-Same download, verify and install steps as the core, one tool at a time. Each failure becomes `W-EXTRA-<tool>` with its own short report saved to `logs/`. The final result can still be green for cluster access.
+Same download, verify and install steps as the core, one tool at a time. Each failure becomes `W-EXTRA-<tool>` with its own short report saved to `logs/`. Extras that preflight skipped (8.1) are reported here with the same code. The final result can still be green for cluster access.
 
 ### 8.8 Verify in a fresh shell, then summarize
 
-1. **Fresh-shell check.** Resolve `kubectl`, `kubectl-oidc_login`, `kube-onramp` (and the extras) the way a new terminal would (section 8.2, check 5).
+1. **Fresh-shell check.** Resolve `kube-onramp` and every catalog tool that was inspected (the core, plus the extras unless `--minimal` is given) the way a new terminal would (section 8.2, check 5). The list comes from the catalog, not from code (D45).
    - If the tool's own copies win, report `[OK]`.
-   - If another copy wins on Windows (for example one on the system PATH, which a no-admin tool can't outrank), report `W-SHADOW`. Say whether that copy is acceptable, and if it isn't, say what to update (usually Docker Desktop).
-2. **Summary.** One line per item, with labels `[OK]`, `[FIXED]`, `[WARN]` or `[FAIL]`. Then the next steps:
+   - If another copy wins on Windows (for example one on the system PATH, which a no-admin tool can't outrank), report `W-SHADOW`. Say whether that copy is acceptable by the tool's version rule (6.2), and if it isn't, say what to update (usually Docker Desktop).
+2. **Summary.** One line per item, including one per extra, with labels `[OK]`, `[FIXED]`, `[WARN]` or `[FAIL]`. Then the next steps:
    - "Open a NEW terminal window."
    - "Try: kubectl get pods"
+   - unless `--minimal` was given: "Try: helm version" and "Try: kubectl kustomize --help";
    - how to switch between staging and prod;
    - "Before a presentation, run: kube-onramp check"
    - the help links.
@@ -373,12 +391,15 @@ Same download, verify and install steps as the core, one tool at a time. Each fa
 - **`check`:** runs preflight (light), inspect, login, verify-access and summary.
   - It never installs or changes anything except renewing the login. If the login has expired, it **opens the browser automatically**, after the same notice as in 8.5.
   - If something is broken, it says "Run kube-onramp to fix this." and exits with code 1.
+  - It inspects the extras too (D45). A missing, broken or outdated extra is `[WARN]` with "Run kube-onramp to fix this.", but it never causes exit code 1 on its own.
+  - With `prodRequired`, no access to prod is `[FAIL]` and exit code 1. The last line says that everything works only when nothing failed, prod included.
   - This is the command teammates run 10 minutes before each presentation.
 - **`reset`:** driven by `state.json`.
   - It removes: the tool's bin dir and cache; its PATH entry or rc block; and **only its own kubeconfig entries**. It doesn't restore an old backup, because that would lose later changes.
   - It restores the previous current context, keeps the `backups/` folder, asks for one Enter press (or accepts `--yes`), and prints what it removed.
   - On Windows a running `.exe` can't delete itself. `reset` starts a short detached helper that deletes `kube-onramp.exe` and the bin dir after the tool has exited.
   - It leaves other software alone.
+  - The extras live in the bin dir, so they are removed with it. Folders that the tools create themselves when they are used (Helm's config and cache, k9s's config, Trivy's database cache) don't belong to kube-onramp, so they stay.
   - Running `setup` again afterwards must work.
 
 ---
@@ -398,7 +419,7 @@ Also save it as `logs/report-<timestamp>.txt` and print that path. Then say: "Th
 Report format (keep it short; the user is going to paste it to someone):
 ```
 === kube-onramp error report (paste this into an AI chatbot) ===
-kube-onramp installs kubectl and kubelogin (int128) and sets up OIDC access to a Kubernetes cluster.
+kube-onramp installs kubectl, kubelogin (int128) and extra tools (Helm, Kustomize, kubeconform, Trivy, k9s, oha) and sets up OIDC access to a Kubernetes cluster.
 Trying to: log in to the cluster through the browser (step 6 of 8)
 Error code: E-LOGIN-TIMEOUT
 Tool: kube-onramp v0.1.0 | OS: Windows 10 Pro 22H2 x64 (build 19045) | PowerShell 5.1 | kubectl v1.xx.x | kubelogin v1.xx.x
@@ -431,6 +452,7 @@ Each code has a fixed B1 message and next steps. Define these, and add more as n
 | `E-LOGIN-TIMEOUT`, `E-LOGIN-REJECTED`, `E-LOGIN-FAILED` | Login failures (`E-LOGIN-FAILED`: anything that is not a timeout, rejection, port or network problem) |
 | `E-CLUSTER-UNREACHABLE` | API server not reachable |
 | `E-ACCESS-FORBIDDEN` | No access to the staging namespace |
+| `E-PROD-FORBIDDEN` | No access to the prod namespace, when the profile has `prodRequired` (v0.2, D46) |
 | `E-INTERNAL` | A recovered panic. The stack trace goes only in the log file, never on screen |
 | `W-EXTRA-<tool>`, `W-SHADOW`, `W-SKEW`, `W-PROD-NOT-YET` | Warnings |
 
@@ -438,6 +460,10 @@ Example message:
 > **E-ACCESS-FORBIDDEN**: You are logged in, but you cannot see the namespace `ns-<team>-staging`.
 > 1. Check your team name. Run again with: `kube-onramp --team <your-team>`
 > 2. If the name is right, ask the teammate who created the namespace in ETAIS, or a TA, to give you access.
+
+> **E-PROD-FORBIDDEN**: You are logged in, but you cannot use the namespace `ns-<team>-prod`.
+> 1. Check your team name. Run again with: `kube-onramp --team <your-team>`
+> 2. If the name is right, maybe the prod namespace does not exist yet, or you are not in it yet. Ask the teammate who created it in ETAIS, or a TA.
 
 ---
 
@@ -484,7 +510,10 @@ docs/SPEC.md  docs/DECISIONS.md  CLAUDE.md  README.md  LICENSE
 - kubeconfig merge with golden files: an empty file, a course-style file, a file with other clusters, a broken UTF-16 file;
 - plan computation from inspect results;
 - redaction;
-- catalog validation (every platform has a URL, a SHA-256 and a minimum OS).
+- catalog validation (every platform has a URL, a SHA-256 and a minimum OS);
+- version rules (`accept`): within N minors of the server, a fixed major version, and no rule (v0.2);
+- preflight with an extra that is unreachable or needs a newer OS: a warning, not a stop (v0.2);
+- the prod result with `prodRequired` set to true and to false (v0.2).
 
 **Test isolation:** `KUBE_ONRAMP_HOME`, a temporary `KUBECONFIG`, and on macOS a temporary `HOME` and `ZDOTDIR`, so tests never touch the developer's real setup. On Windows, the hidden variable `KUBE_ONRAMP_TEST_ENV_KEY` points PATH reads and writes at a throwaway key under `HKCU\Software\` instead of `HKCU\Environment`.
 
@@ -496,9 +525,10 @@ docs/SPEC.md  docs/DECISIONS.md  CLAUDE.md  README.md  LICENSE
 **Smoke test** on `windows-latest` and on an Intel macOS runner. As of 2026-11-11 the Intel runners are `macos-15-intel` and `macos-26-intel`; there is no macOS 13 runner, so Machine B is the only macOS 13 test:
 1. `setup --yes --minimal --skip-login --team ci-test`
 2. Run it again and assert the plan was empty.
-3. `check --skip-login`
-4. `reset --yes`
-5. Assert the PATH, rc files and kubeconfig are back to their original state.
+3. (v0.2) `setup --yes --skip-login --team ci-test`, without `--minimal`: every extra is downloaded, verified and found first in a new shell. Run it again and assert the plan was empty.
+4. `check --skip-login`
+5. `reset --yes`
+6. Assert the PATH, rc files and kubeconfig are back to their original state, and the bin dir with the extras is gone.
 
 ### Release
 GoReleaser on `v*` tags. Checksums are required; an SBOM is optional.
@@ -528,9 +558,9 @@ License: Apache-2.0, copyright "The kube-onramp Authors".
 |---|---|---|
 | M0: scaffold | Wed Nov 11 – Thu Nov 12 | Repo, CI, `docs/SPEC.md`, `CLAUDE.md`, profile (with verified CA data), catalog entries for kubectl and kubelogin with verified pins, Go toolchain pinned |
 | M1: **v0.1.0** | **Sun Nov 15** | Core flow on Windows and macOS, `check`, `reset`, error reports, bootstrap scripts, GoReleaser release. Teammates test it on Nov 13–15, before Checkpoint 3 on Fri Nov 20 |
-| M2: v0.2.0 | about Sun Nov 22 (Phase 4 starts Nov 23) | Extras (Helm 4, k9s, Trivy, kubeconform, load generator), `--minimal`, prod context checks, `update-catalog` |
+| M2: v0.2.0 | early December, before the Week 14 production work; at the latest before Checkpoint 4 (week 16) | kubectl 1.37 (D41); extras (Helm 4, Kustomize, kubeconform, Trivy, k9s, oha) with version rules (D42–D44); extras never block: preflight, `check`, new-terminal check (D45); `prodRequired`, `E-PROD-FORBIDDEN` and the Phase 4 access checks (D46). `update-catalog` moves to later (D47) |
 
-**Status (2026-11-11):** M0 done; M1 done, v0.1.0 released, all twelve acceptance tests below pass (results in [TESTING.md](TESTING.md)). M2 not started.
+**Status (2026-11-23):** M0 and M1 done: v0.1.0 was released on 2026-11-11, and all twelve v0.1 acceptance tests pass (results in [TESTING.md](TESTING.md)). M2 has started: this spec and DECISIONS.md (D40–D47) are updated. The catalog, code and tests are next.
 
 ### Acceptance tests for v0.1 (each must pass)
 1. **Clean Windows (Sandbox):** after the one-liner and login, `kubectl get pods -n ns-<team>-staging` works in a **new** PowerShell window.
@@ -552,6 +582,16 @@ License: Apache-2.0, copyright "The kube-onramp Authors".
 10. **Blocked network:** with github.com blocked, the run fails in preflight before any change.
 11. **Reset:** `reset` removes only the tool's own changes, and `setup` afterwards works again.
 12. **Port fallback:** with port 8000 busy, login falls back to 18000. With both busy, the user gets a clear message.
+
+### Acceptance tests for v0.2 (each must pass)
+13. **Extras on Machines A and B:** setup without `--minimal` installs all six extras, and each one wins in a new terminal. `helm version` shows 4.x.
+14. **Helm uses kube-onramp's login:** in a new terminal, `helm list --kube-context ut-devops-staging` works with no extra setup.
+15. **Blocked extra host:** with `get.helm.sh` blocked, the run still finishes. It shows `W-EXTRA-HELM`, and the core results are unchanged.
+16. **Old Helm first on PATH (Windows):** a Helm 3 copy on the system PATH gives `W-SHADOW` with "not acceptable".
+17. **No prod access:** with `prodRequired: true` and a team without prod access, setup installs everything, then shows `E-PROD-FORBIDDEN` with a report and exits with code 1. `check` also exits with code 1 and doesn't say that everything works.
+18. **`check` with a missing extra:** `[WARN]` and "Run kube-onramp to fix this.", but exit code 0 when nothing else is wrong.
+19. **Run twice with extras:** the second run says "Everything is already set up" and changes nothing.
+20. **Reset with extras:** `reset` removes the extras with the bin dir. Folders the tools made themselves stay.
 
 ---
 
