@@ -1,6 +1,6 @@
 # Open items
 
-State on 2026-11-23: **v0.1.0 is released** (2026-11-11); all 12 v0.1 acceptance tests pass ([TESTING.md](TESTING.md)). **M2 has started:** SPEC and DECISIONS (D40–D48), the catalog, the code, the unit and smoke tests and the README are done. Next: a green CI run with the extras, then `v0.2.0-rc.1` and acceptance tests 13–20.
+State on 2026-11-23: **v0.1.0 is released** (2026-11-11); all 12 v0.1 acceptance tests pass ([TESTING.md](TESTING.md)). **M2 has started:** SPEC and DECISIONS (D40–D48), the catalog, the code, the unit and smoke tests and the README are done. CI is green with the extras on Windows and macOS, and **`v0.2.0-rc.1` is out** (pre-release). Next: acceptance tests 13–20 with the teammates.
 
 ## Check around Phase 4 / Checkpoint 4 (mid-December)
 - [ ] **Prod namespace name.** The Week 14 page says `<team-name>-prod`, and ETAIS adds `ns-`, so `ns-<team>-prod` (`namespaces.prod` in `profiles/ut-devops.yaml`) should be right (D46). Confirm it with a real login. If it is wrong, fix the template in the next release.
@@ -14,7 +14,8 @@ State on 2026-11-23: **v0.1.0 is released** (2026-11-11); all 12 v0.1 acceptance
 - [x] **Texts:** summary lines for the extras, the next steps, the error report header, and the README.
 - [x] **Unit and smoke tests** (SPEC §12). The smoke step for the extras runs only in CI (D48). Watch its first CI run: it is the first time the extras actually run.
 - [ ] **Acceptance tests 13–20** (SPEC §13), after an rc exists. Most need Machines A and B or a real login; tests 16 and 17 need a prepared machine or a team without prod access.
-- [ ] **Release:** `v0.2.0-rc.N` for the teammates (Machines A and B); the final `v0.2.0` tag needs the maintainer's OK.
+- [x] **rc.1:** `v0.2.0-rc.1` was tagged on 2026-11-23 from `7c97e1d` (CI green, including the extras smoke step). It is a pre-release; `releases/latest` is still v0.1.0.
+- [ ] **Release:** after acceptance tests 13–20 pass, the final `v0.2.0` tag (needs the maintainer's OK). Then record the results in TESTING.md.
 
 ## Nice to have
 - [ ] `go run ./tools/update-catalog`: the maintainer command that finds new upstream versions and checksums (SPEC 6.2). Moved out of M2 (D47).
