@@ -40,7 +40,7 @@ The tests from SPEC section 13 for v0.2. Tests 14 and 17 ran on 2026-11-23 on Ma
 | 16 | Helm v3.22.1 on the system PATH: `W-SHADOW` for helm with "That copy is too old or not the right program" | Windows Sandbox | Pass |
 | 17 | No prod access (`--prod-namespace` with a namespace that doesn't exist): everything installed, then `E-PROD-FORBIDDEN` with a report, exit code 1. `check` exits with 1 and doesn't say "Everything works". The report has no email or home path | Machine C (isolated, real login) | Pass |
 | 18 | `kubeconform.exe` deleted, then `check`: `[WARN]`, "Run kube-onramp to fix this.", exit code 0 | Windows Sandbox | Pass |
-| 19 | Run twice with extras: "Everything is already set up" | CI smoke tests: pass. Windows Sandbox: **fails** with rc.1 because of oha (below), passes with the fix (D50). Machines A and B: waiting for the teammates | Pass in the Sandbox with the fix |
+| 19 | Run twice with extras: "Everything is already set up" | CI smoke tests: pass. Windows Sandbox: **fails** with rc.1 because of oha (below), passes with the fix (D50). Machine C (real, rc.2 install line again): pass. Machines A and B: waiting for the teammates | Pass on Machine C and in the Sandbox with the fix |
 | 20 | `reset --yes`: bin folder with all extras gone, user PATH back, `state.json` gone. Folders the tools made stay (`%LOCALAPPDATA%\k9s`, `~\.kube`) | Windows Sandbox | Pass |
 
 Also seen with the real login:
@@ -69,7 +69,7 @@ The teammates and Machine C have v0.1 installed, and all other tests started wit
 - `reset` after the upgrade: the bin folder is gone, the user PATH is as before v0.1.0, the current context is back to `etais-user@kubernetes` (recorded by v0.1.0), and only kube-onramp's entries are removed.
 - Not covered: the macOS upgrade. Its parts that differ from Windows (the rc block, file modes) are unchanged since v0.1.
 
-The same upgrade on Machine C, for real (not isolated), with the maintainer's login, using the rc.2 install line (2026-11-23): kubectl 1.36.6 was updated to 1.37.2, and the six extras were installed (oha too; Machine C has the Visual C++ runtime). Staging and prod are `[OK]`, with every rights check allowed. PATH and the kubeconfig needed no change. The only warning is the known `W-SHADOW` for Docker Desktop's kubectl 1.34.1 (D20). In a new window, `helm version` shows v4.3.2, and `helm list --kube-context ut-devops-staging` works.
+The same upgrade on Machine C, for real (not isolated), with the maintainer's login, using the rc.2 install line (2026-11-23): kubectl 1.36.6 was updated to 1.37.2, and the six extras were installed (oha too; Machine C has the Visual C++ runtime). Staging and prod are `[OK]`, with every rights check allowed. PATH and the kubeconfig needed no change. The only warning is the known `W-SHADOW` for Docker Desktop's kubectl 1.34.1 (D20). In a new window, `helm version` shows v4.3.2, and `helm list --kube-context ut-devops-staging` works. The install line again: "Everything is already set up", nothing to install or change, everything `[OK]` except the same `W-SHADOW` (test 19).
 - Docker Desktop on Machine C is 4.69.0, installed from the Microsoft Store. Docker's release notes (checked 2026-11-23): the newest version is 4.100.1, and 4.96.3 (2026-10-22) updated its kubectl to v1.36.1. That version is within one minor of the 1.37 cluster, so the shadow would become acceptable.
 
 ## Automated tests (every push)
