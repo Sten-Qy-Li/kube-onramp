@@ -69,6 +69,9 @@ The teammates and Machine C have v0.1 installed, and all other tests started wit
 - `reset` after the upgrade: the bin folder is gone, the user PATH is as before v0.1.0, the current context is back to `etais-user@kubernetes` (recorded by v0.1.0), and only kube-onramp's entries are removed.
 - Not covered: the macOS upgrade. Its parts that differ from Windows (the rc block, file modes) are unchanged since v0.1.
 
+The same upgrade on Machine C, for real (not isolated), with the maintainer's login, using the rc.2 install line (2026-11-23): kubectl 1.36.6 was updated to 1.37.2, and the six extras were installed (oha too; Machine C has the Visual C++ runtime). Staging and prod are `[OK]`, with every rights check allowed. PATH and the kubeconfig needed no change. The only warning is the known `W-SHADOW` for Docker Desktop's kubectl 1.34.1 (D20). In a new window, `helm version` shows v4.3.2, and `helm list --kube-context ut-devops-staging` works.
+- Docker Desktop on Machine C is 4.69.0, installed from the Microsoft Store. Docker's release notes (checked 2026-11-23): the newest version is 4.100.1, and 4.96.3 (2026-10-22) updated its kubectl to v1.36.1. That version is within one minor of the 1.37 cluster, so the shadow would become acceptable.
+
 ## Automated tests (every push)
 - Unit tests on Windows, Intel macOS, Apple silicon macOS and Linux.
 - End-to-end smoke tests on `windows-latest` and `macos-15-intel`: setup, setup again (no changes), check, reset, everything back byte for byte.
