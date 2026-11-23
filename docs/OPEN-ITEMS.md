@@ -25,6 +25,10 @@ State on 2026-11-23: **v0.1.0 is released** (2026-11-11); all 12 v0.1 acceptance
   - Node is a folder (node, npm, npx), not one file. It needs a new install type, shims or a second PATH entry, and changes to `reset`.
   - On Windows, a Node from the official installer is on the system PATH and would still win (the same limit as Docker's kubectl, D20).
   - Check Node's minimum macOS version upstream against Machine B (macOS 13.7.8).
+- [ ] **A PowerShell profile line for `W-SHADOW` on Windows** (the same rule; candidate, not decided). When a copy on the system PATH wins (D20), kube-onramp could offer to add one line to the PowerShell profile that puts its bin folder first. It needs no admin rights, but it only works in PowerShell (not cmd or Git Bash), and `reset` must remove it. Facts found on 2026-11-23 on Machine C:
+  - Its Docker Desktop (4.69.0, kubectl 1.34.1) came from the Microsoft Store. The Store page says Docker manages the updates, but Docker Desktop's update page points back to the Store, so it can't be updated in place.
+  - Docker's release notes: the newest version is 4.100.1. Since 4.96.3 it includes kubectl v1.36.1, which is acceptable for a 1.37 cluster.
+  - Docker's install page: the installer's default is now a per-user install (no admin rights), which puts Docker on the user PATH, after kube-onramp's entry. The `W-SHADOW` advice could mention this.
 
 ## Nice to have
 - [ ] `go run ./tools/update-catalog`: the maintainer command that finds new upstream versions and checksums (SPEC 6.2). Moved out of M2 (D47).
