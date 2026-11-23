@@ -90,7 +90,9 @@ if [ "${CI:-}" = true ] || [ "${KUBE_ONRAMP_SMOKE_EXTRAS:-}" = 1 ]; then
 	[ "$before" = "$(snapshot)" ] || fail "the second run with extras changed files"
 	# Each extra must print its own version: this checks the catalog's version
 	# patterns against the real programs (D42).
-	log=$(ls -t "$KUBE_ONRAMP_HOME"/logs/*.log | head -1)
+	# Log names are timestamps (20060102-150405.log), so the last one in the
+	# sorted glob is the newest.
+	for log in "$KUBE_ONRAMP_HOME"/logs/*.log; do :; done
 	for x in $extras; do
 		grep -Eq "$x: own copy .* prints version \"[0-9]+\.[0-9]+\.[0-9]+\"" "$log" || fail "the log has no version printed by $x"
 	done
