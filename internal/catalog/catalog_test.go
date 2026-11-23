@@ -22,6 +22,22 @@ func TestEmbeddedCatalogIsValid(t *testing.T) {
 	if got := len(c.ByRole(RoleCore)); got != 2 {
 		t.Errorf("core tools = %d, want 2", got)
 	}
+	var extras []string
+	for _, tool := range c.ByRole(RoleExtra) {
+		extras = append(extras, tool.ID)
+	}
+	if got, want := strings.Join(extras, ","), "helm,kustomize,kubeconform,trivy,k9s,oha"; got != want {
+		t.Errorf("extras = %s, want %s", got, want)
+	}
+	// Machine B runs macOS 13, the oldest supported macOS (SPEC §2).
+	for _, tool := range c.Tools {
+		for _, p := range []string{"darwin/amd64", "darwin/arm64"} {
+			a := tool.Platforms[p]
+			if ok, err := a.SupportsOS("13.0"); err != nil || !ok {
+				t.Errorf("%s %s needs macOS %s, newer than 13.0", tool.ID, p, a.MinOS)
+			}
+		}
+	}
 	kl, _ := c.Tool("kubelogin")
 	if got := kl.FileName("windows"); got != "kubectl-oidc_login.exe" {
 		t.Errorf("FileName(windows) = %q", got)
@@ -143,6 +159,60 @@ func TestParseVersionAndIdentity(t *testing.T) {
 	}
 	if !kubectl.IsRightProduct(tests[0].output) {
 		t.Error("kubectl not recognized")
+	}
+}
+
+// The outputs follow the formats in each tool's upstream source at the pinned
+// version (see the comments in catalog/tools.yaml and DECISIONS.md D42-D43).
+func TestExtrasVersionAndIdentity(t *testing.T) {
+	c, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tool := func(id string) *Tool {
+		t.Helper()
+		x, ok := c.Tool(id)
+		if !ok {
+			t.Fatalf("tool %q missing", id)
+		}
+		return x
+	}
+
+	versions := []struct {
+		id, output, want string // want "" means no version found
+	}{
+		{"helm", "v4.3.2+g8346aaa\n", "4.3.2"},
+		{"helm", "WARNING: a line before the version\nv4.3.2+g8346aaa\n", "4.3.2"},
+		{"helm", "v3.19.0+g3d8990f\n", "3.19.0"},
+		{"kustomize", "v5.8.3\n", "5.8.3"},
+		{"kubeconform", "v0.8.0\n", "0.8.0"},
+		{"kubeconform", "development\n", ""},
+		{"trivy", "Version: 0.76.2\nVulnerability DB:\n  Version: 2\n  UpdatedAt: 2026-11-22 06:00:00 +0000 UTC\n", "0.76.2"},
+		{"trivy", "Vulnerability DB:\n  Version: 2\n", ""},
+		{"k9s", "Version              v0.51.0\nCommit               558caaf\nDate                 2026-06-06T05:21:57Z\n", "0.51.0"},
+		{"oha", "oha 1.17.0\n", "1.17.0"},
+	}
+	for _, tt := range versions {
+		got, ok := tool(tt.id).ParseVersion(tt.output)
+		if got != tt.want || ok != (tt.want != "") {
+			t.Errorf("%s: ParseVersion(%q) = %q, %v; want %q", tt.id, tt.output, got, ok, tt.want)
+		}
+	}
+
+	helps := map[string]string{
+		"helm":        "The Kubernetes package manager\n\nCommon actions for Helm:\n",
+		"kustomize":   "\nManages declarative configuration of Kubernetes.\nSee https://sigs.k8s.io/kustomize\n",
+		"kubeconform": "Usage: C:\\tools\\kubeconform.exe [OPTION]... [FILE OR FOLDER]...\n  -cache string\n",
+		"trivy":       "Scanner for vulnerabilities in container images, file systems, and Git repositories, as well as for configuration issues and hard-coded secrets\n\nUsage:\n",
+		"k9s":         "K9s is a CLI to view and manage your Kubernetes clusters.\n\nUsage:\n  k9s [flags]\n",
+		"oha":         "Ohayou(おはよう), HTTP load generator, inspired by rakyll/hey with tui animation.\n\nUsage: oha [OPTIONS] <URL>\n",
+	}
+	for id := range helps {
+		for other, help := range helps {
+			if got, want := tool(id).IsRightProduct(help), id == other; got != want {
+				t.Errorf("%s: IsRightProduct(help of %s) = %v, want %v", id, other, got, want)
+			}
+		}
 	}
 }
 

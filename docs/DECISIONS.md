@@ -127,7 +127,7 @@ Found in the Windows Sandbox test of a closed browser (acceptance test 9, 2026-1
 The maintainer asked for both templating tools from the Week 13 page, so students are ready whichever one their team picks. `kubectl kustomize` already covers what the course uses (the page: "Kustomize is built into kubectl (version 1.14+)"). The standalone `kustomize` adds `kustomize edit` and a newer release: kube-onramp's kubectl v1.36.6 reports Kustomize v5.8.1, and the latest standalone release is v5.8.3. It costs about 5 MB.
 
 ## D41. The kubectl pin moves to v1.37.2 (2026-11-23)
-On 2026-11-23 the cluster answered anonymous `GET /version` with `v1.37.2` (build date 2026-10-27). Upstream v1.37.2 was released on 2026-10-28. v0.1.0's kubectl v1.36.6 is still within ±1, so v0.1.0 users get no `W-SKEW`, but the pin follows the server's minor version (D2). Docker Desktop's kubectl on Machine C (v1.34.1, D20) is now three minors behind. The URL and SHA-256 are checked with the D2 method when the catalog changes.
+On 2026-11-23 the cluster answered anonymous `GET /version` with `v1.37.2` (build date 2026-10-27). Upstream v1.37.2 was released on 2026-10-28. v0.1.0's kubectl v1.36.6 is still within ±1, so v0.1.0 users get no `W-SKEW`, but the pin follows the server's minor version (D2). Docker Desktop's kubectl on Machine C (v1.34.1, D20) is now three minors behind. Checked on 2026-11-23: each of the four files matches its `.sha256` file on dl.k8s.io and our own hash. They are built with go1.26.10 (minimum macOS 12, as before), and their `vcs.revision` (`c50e5395…`) is the commit of the v1.37.2 tag.
 
 ## D42. Extra tools and their versions (2026-11-23)
 Checked on GitHub (release dates and assets) and on get.helm.sh. Every tool has files for windows/amd64, darwin/amd64, darwin/arm64 and linux/amd64.
@@ -144,7 +144,16 @@ Checked on GitHub (release dates and assets) and on get.helm.sh. Every tool has 
 - Helm v4.3.2's `go.mod` uses `k8s.io/client-go v0.37.2`, the cluster's minor version (D41). Its release history is stored in Secrets unless `HELM_DRIVER` says otherwise (`pkg/action/action.go`, `Configuration.Init`, at v4.3.2).
 - Trivy v0.76.2 is newer than CI's v0.76.1 (D17). Both came out after the March 2026 incident.
 - On 2026-11-23 every version is at least 7 days old (oha is the newest, at 9 days). D17's 7-day rule now covers catalog pins too, because students run these binaries on their laptops.
-- The SHA-256 values are checked with the D2 method when the catalog entries are written, and recorded here then.
+- **Checked on 2026-11-23 with the D2 method:** all 24 files match their upstream checksums (for oha, GitHub's digests, D43) and our own hashes. The values are in `catalog/tools.yaml`. A script compared the catalog with the check results, line by line.
+- **Build facts from `go version -m`** (it reads the file; nothing was run):
+  - Helm is built with go1.27.4, Kustomize with go1.27.1 and Trivy with go1.27.3, so they need macOS 13. Machine B runs 13.7.8, and a test now fails if any tool needs a newer macOS than 13.
+  - kubeconform (go1.26.3) and k9s (go1.26.1) need macOS 12.
+  - The Mach-O headers agree.
+  - Where the build info has a commit (Helm, kubeconform, k9s, Trivy), it is the commit of the release tag.
+- **Version and identity output** come from each tool's source at the pinned tag, not from running the binaries (CLAUDE.md). The formats are in the catalog comments and are tested in `internal/catalog/catalog_test.go`.
+  - Helm, kubeconform and k9s are built with `-trimpath`, so their build info has no `-ldflags`. Their version strings (`v4.3.2`, `v0.8.0`, `v0.51.0`) do appear in the files.
+  - Kustomize and Trivy show the version in their `-ldflags`.
+- **k9s creates a folder when it runs.** Any k9s command, `k9s version` included, creates k9s's own log folder (`cmd/root.go`: `init()` calls `config.InitLogLoc`). So kube-onramp's inspect step creates that folder once on a machine with k9s. This is accepted: it is the folder k9s uses anyway, and it is not kube-onramp's to remove.
 - Together, the extras add about 138 MB to a first run on Windows.
 
 ## D43. oha is the load generator, and its checks differ (2026-11-23)
@@ -152,7 +161,10 @@ SPEC asked to check that `oha` suits. It does: one plain binary per platform (`a
 
 oha differs from the other tools in two ways:
 - **No checksum file upstream.** GitHub publishes its own SHA-256 `digest` for each release asset (GitHub API, `repos/hatoo/oha/releases`). That digest replaces the upstream checksum file; our own hash of the download is still the second check.
-- **It is written in Rust**, so `go version` can't give the minimum OS (D3). It is read from the binary's header with Go's `debug/pe` and `debug/macho` (PE subsystem version, Mach-O minimum OS), without running the file. Linux binaries have no such field; there, the Rust target's documented minimum kernel is used.
+- **It is written in Rust**, so `go version` can't give the minimum OS (D3). It is read from the binary's header with Go's `debug/pe`, `debug/macho` and `debug/elf`, without running the file, and checked against Rust's platform-support page at Rust 1.88 (oha's `rust-version`):
+  - Windows: the PE header says 6.0, but Rust's `x86_64-pc-windows-msvc` target needs "Windows 10+", so minOS is 10.0.
+  - macOS: the headers say 10.12 (Intel) and 11.0 (Apple silicon), the same as Rust's documented minimums.
+  - Linux: the file is a static musl build (`x86_64-unknown-linux-musl` in oha's `release.yml`; no interpreter, no glibc). Rust gives no minimum kernel for that target, so minOS is 3.2, as for the other tools (Linux is best effort).
 
 Pin the plain builds: the `-pgo` builds exist only for Linux and Windows.
 

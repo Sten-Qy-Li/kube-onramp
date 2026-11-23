@@ -1,9 +1,12 @@
 # Tools that kube-onramp installs. Adding a tool should only need a new entry here.
 #
 # Every sha256 was checked against the upstream checksum file AND by hashing the
-# downloaded file. minOS comes from the Go version inside each binary (read with
-# `go version <file>`) and the Go wiki's minimum requirements.
-# Last verified: 2026-11-11 (docs/DECISIONS.md, D2-D4).
+# downloaded file (oha has no checksum file: GitHub's asset digest is used, D43).
+# minOS comes from the Go version inside each binary (read with
+# `go version <file>`) and the Go wiki's minimum requirements; for oha (Rust) it
+# comes from the binary headers and Rust's documented minimums (D43).
+# Last verified: kubelogin 2026-11-11 (D2-D4); kubectl and the extras
+# 2026-11-23 (D41-D43).
 #
 # platforms keys are GOOS/GOARCH. minOS is compared with the OS version:
 # Windows NT version (10.0), macOS product version (12.0), Linux kernel (3.2).
@@ -13,7 +16,7 @@ tools:
   - id: kubectl
     name: kubectl
     role: core
-    version: 1.36.6 # cluster server is v1.36.6; built with go1.26.10
+    version: 1.37.2 # cluster server is v1.37.2 (2026-11-23); built with go1.26.10
     binary: kubectl
     versionCommand: [version, --client, -o, json]
     versionRegex: '"gitVersion":\s*"v([0-9]+\.[0-9]+\.[0-9]+)'
@@ -22,27 +25,27 @@ tools:
       mustMatch: '"clientVersion"'
     platforms:
       windows/amd64:
-        url: https://dl.k8s.io/release/v1.36.6/bin/windows/amd64/kubectl.exe
-        sha256: 2bc0fbea066016c62cfef307108c303c2f796420d4a5dfc844de6e25d4bc47e0
-        size: 61115904
+        url: https://dl.k8s.io/release/v1.37.2/bin/windows/amd64/kubectl.exe
+        sha256: 1691938f7de0e931969f9968c3601cf32d6b0d573573afb4ce471f3d28f51984
+        size: 63470080
         archive: none
         minOS: "10.0"
       darwin/amd64:
-        url: https://dl.k8s.io/release/v1.36.6/bin/darwin/amd64/kubectl
-        sha256: 2e22d382f2423c88d9d076246f860bb3d5c743dd279ca63e113474bb88382426
-        size: 60847264
+        url: https://dl.k8s.io/release/v1.37.2/bin/darwin/amd64/kubectl
+        sha256: 88379aff5c8111de6be0a394adffba2819e44cde269f3ab23cef76de1a48eaa8
+        size: 63202672
         archive: none
         minOS: "12.0"
       darwin/arm64:
-        url: https://dl.k8s.io/release/v1.36.6/bin/darwin/arm64/kubectl
-        sha256: 1cf735c3d35ccfec28d0618784cb06a4614d2c42aade28b6be0eab76a2ffb623
-        size: 57326258
+        url: https://dl.k8s.io/release/v1.37.2/bin/darwin/arm64/kubectl
+        sha256: 55701af0d51815ee335f240e48acf0959c3c23017ed3fa816e880c4a92bae581
+        size: 59609250
         archive: none
         minOS: "12.0"
       linux/amd64:
-        url: https://dl.k8s.io/release/v1.36.6/bin/linux/amd64/kubectl
-        sha256: 29818b6729dc9262b692307470d0558d027725e738be5dd47c760261868a2634
-        size: 59592866
+        url: https://dl.k8s.io/release/v1.37.2/bin/linux/amd64/kubectl
+        sha256: c04487523e7aa7d1493f7808174c899db93d7a9cf57531420cd76b9bd415f8f4
+        size: 61890722
         archive: none
         minOS: "3.2"
 
@@ -90,4 +93,258 @@ tools:
         size: 11567162
         archive: zip
         path: kubelogin
+        minOS: "3.2"
+
+  # ---- Extras (v0.2): installed unless --minimal; a failure is only a warning.
+
+  - id: helm
+    name: Helm
+    role: extra
+    version: 4.3.2 # built with go1.27.4 (macOS 13+)
+    binary: helm
+    # Format: "v4.3.2+g8346aaa" (pkg/cmd/version.go, formatVersion(short)).
+    versionCommand: [version, --short]
+    versionRegex: '(?m)^v([0-9]+\.[0-9]+\.[0-9]+)'
+    identity:
+      # pkg/cmd/root.go, globalUsage: "The Kubernetes package manager"
+      command: [--help]
+      mustMatch: 'The Kubernetes package manager'
+    platforms:
+      windows/amd64:
+        url: https://get.helm.sh/helm-v4.3.2-windows-amd64.zip
+        sha256: 77c5c782aaef1abbfafe75b88412d2b6df8e4a36d14522273397f0d02c6ecc29
+        size: 20868604
+        archive: zip
+        path: windows-amd64/helm.exe
+        minOS: "10.0"
+      darwin/amd64:
+        url: https://get.helm.sh/helm-v4.3.2-darwin-amd64.tar.gz
+        sha256: 9e0068e9ae18c441d27388190ee7f53ae65eba44bfe910b40bdac44c4b51fa71
+        size: 20778371
+        archive: tar.gz
+        path: darwin-amd64/helm
+        minOS: "13.0"
+      darwin/arm64:
+        url: https://get.helm.sh/helm-v4.3.2-darwin-arm64.tar.gz
+        sha256: 6f3421de3a8cc2ac578c8cfb33b8edde290dde2871bc1bab12e24f2e5caeaa90
+        size: 18820275
+        archive: tar.gz
+        path: darwin-arm64/helm
+        minOS: "13.0"
+      linux/amd64:
+        url: https://get.helm.sh/helm-v4.3.2-linux-amd64.tar.gz
+        sha256: d1c0278d46beab79582d7e50f5b3dc206944ba8e577cde618513fd07daa53983
+        size: 20371780
+        archive: tar.gz
+        path: linux-amd64/helm
+        minOS: "3.2"
+
+  - id: kustomize
+    name: Kustomize
+    role: extra
+    version: 5.8.3 # built with go1.27.1 (macOS 13+)
+    binary: kustomize
+    # Format: "v5.8.3" (kustomize/commands/version/version.go, Semver()).
+    versionCommand: [version]
+    versionRegex: '(?m)^v([0-9]+\.[0-9]+\.[0-9]+)'
+    identity:
+      # kustomize/commands/commands.go: "Manages declarative configuration of Kubernetes"
+      command: [--help]
+      mustMatch: 'Manages declarative configuration of Kubernetes'
+    platforms:
+      windows/amd64:
+        url: https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.8.3/kustomize_v5.8.3_windows_amd64.zip
+        sha256: 763c4040ff01435bfce39661072452ebdf1cf2808bb91f5708ab4420834fbd42
+        size: 5208138
+        archive: zip
+        path: kustomize.exe
+        minOS: "10.0"
+      darwin/amd64:
+        url: https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.8.3/kustomize_v5.8.3_darwin_amd64.tar.gz
+        sha256: d08fb85846c3d977f0e2a66e7ff45f1b5264c294685e5e726e1a8bdfe0da8dee
+        size: 5132020
+        archive: tar.gz
+        path: kustomize
+        minOS: "13.0"
+      darwin/arm64:
+        url: https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.8.3/kustomize_v5.8.3_darwin_arm64.tar.gz
+        sha256: 4cbb08e209d8fff47cd60bfb6407daaf5ee699f9b9295849a1065024fac2d1ef
+        size: 4726414
+        archive: tar.gz
+        path: kustomize
+        minOS: "13.0"
+      linux/amd64:
+        url: https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.8.3/kustomize_v5.8.3_linux_amd64.tar.gz
+        sha256: cb9e31198d3f63b44848bd0afc4c8efc56e6cfef9c93a4a39a211940e6decd61
+        size: 5059714
+        archive: tar.gz
+        path: kustomize
+        minOS: "3.2"
+
+  - id: kubeconform
+    name: kubeconform
+    role: extra
+    version: 0.8.0 # built with go1.26.3
+    binary: kubeconform
+    # Format: "v0.8.0" (cmd/kubeconform/main.go prints main.version for -v).
+    versionCommand: [-v]
+    versionRegex: '(?m)^v([0-9]+\.[0-9]+\.[0-9]+)'
+    identity:
+      # pkg/config/config.go: "Usage: <program> [OPTION]... [FILE OR FOLDER]..." (exit code 0 for -h)
+      command: [-h]
+      mustMatch: 'Usage: .*\[OPTION\]\.\.\. \[FILE OR FOLDER\]\.\.\.'
+    platforms:
+      windows/amd64:
+        url: https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-windows-amd64.zip
+        sha256: e3f56102bcf4f50b034a567e2482a1c5330799983ddd655952310211aef73d93
+        size: 7615744
+        archive: zip
+        path: kubeconform.exe
+        minOS: "10.0"
+      darwin/amd64:
+        url: https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-darwin-amd64.tar.gz
+        sha256: 71dbc87ac9f24099a62b93570e65aa06312ba6ac8aea63b7f86e9d999edf5a92
+        size: 7762426
+        archive: tar.gz
+        path: kubeconform
+        minOS: "12.0"
+      darwin/arm64:
+        url: https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-darwin-arm64.tar.gz
+        sha256: f84f4dfbebf4a6b0b230385fa065a39ea35e02608c2b50d025dcf64775a69d67
+        size: 7276844
+        archive: tar.gz
+        path: kubeconform
+        minOS: "12.0"
+      linux/amd64:
+        url: https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz
+        sha256: 9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883
+        size: 7534236
+        archive: tar.gz
+        path: kubeconform
+        minOS: "3.2"
+
+  - id: trivy
+    name: Trivy
+    role: extra
+    version: 0.76.2 # built with go1.27.3 (macOS 13+)
+    binary: trivy
+    # Format: first line "Version: 0.76.2" (pkg/types/version.go); database
+    # lines below it are indented, so the anchor skips them.
+    versionCommand: [--version]
+    versionRegex: '(?m)^Version: v?([0-9]+\.[0-9]+\.[0-9]+)'
+    identity:
+      # pkg/commands/app.go, root Long: "Scanner for vulnerabilities in container images, ..."
+      command: [--help]
+      mustMatch: 'Scanner for vulnerabilities in container images'
+    platforms:
+      windows/amd64:
+        url: https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_windows-64bit.zip
+        sha256: 691f737a7e5566a673c3a74dab9160552ec32101e953b659e5c77443d16dddb6
+        size: 53905616
+        archive: zip
+        path: trivy.exe
+        minOS: "10.0"
+      darwin/amd64:
+        url: https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_macOS-64bit.tar.gz
+        sha256: e08bb9ea449ecf66c6bfb03cbb8697c503ff33d35fc585c9747e3eaeb7ed4c7b
+        size: 53795834
+        archive: tar.gz
+        path: trivy
+        minOS: "13.0"
+      darwin/arm64:
+        url: https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_macOS-ARM64.tar.gz
+        sha256: ae7ea358326960406b703c77b2ac490190797d80b306b5b50c2a27221da0a5b8
+        size: 49840394
+        archive: tar.gz
+        path: trivy
+        minOS: "13.0"
+      linux/amd64:
+        url: https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_Linux-64bit.tar.gz
+        sha256: bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf
+        size: 52714130
+        archive: tar.gz
+        path: trivy
+        minOS: "3.2"
+
+  - id: k9s
+    name: k9s
+    role: extra
+    version: 0.51.0 # built with go1.26.1
+    binary: k9s
+    # Format: "Version              v0.51.0" (cmd/version.go, short form).
+    # Any k9s command creates k9s's own log folder at start (D42).
+    versionCommand: [version, --short]
+    versionRegex: 'Version\s+v([0-9]+\.[0-9]+\.[0-9]+)'
+    identity:
+      # cmd/root.go, longAppDesc: "K9s is a CLI to view and manage your Kubernetes clusters."
+      command: [--help]
+      mustMatch: 'K9s is a CLI to view and manage your Kubernetes clusters'
+    platforms:
+      windows/amd64:
+        url: https://github.com/derailed/k9s/releases/download/v0.51.0/k9s_Windows_amd64.zip
+        sha256: bba299f1877913979831543a008f2e104995d2ea4ac8f23d7f49c0444857d973
+        size: 42330705
+        archive: zip
+        path: k9s.exe
+        minOS: "10.0"
+      darwin/amd64:
+        url: https://github.com/derailed/k9s/releases/download/v0.51.0/k9s_Darwin_amd64.tar.gz
+        sha256: 7e8802c57c45a0cd389e8fc38472243fe4cf48d8ad5957e189ce370e19e5eda0
+        size: 42172258
+        archive: tar.gz
+        path: k9s
+        minOS: "12.0"
+      darwin/arm64:
+        url: https://github.com/derailed/k9s/releases/download/v0.51.0/k9s_Darwin_arm64.tar.gz
+        sha256: 9b8c0e8f461e5d33aeee43a67f5ef4aff646a008a786887b8266cbb153c610cc
+        size: 39201894
+        archive: tar.gz
+        path: k9s
+        minOS: "12.0"
+      linux/amd64:
+        url: https://github.com/derailed/k9s/releases/download/v0.51.0/k9s_Linux_amd64.tar.gz
+        sha256: c3752ad51a5a4015a113819c4eeb6e55a4d0e4b8e652494797532f6fc8161dd7
+        size: 41387759
+        archive: tar.gz
+        path: k9s
+        minOS: "3.2"
+
+  - id: oha
+    name: oha
+    role: extra
+    version: 1.17.0 # Rust; minOS from headers and Rust's platform docs (D43)
+    binary: oha
+    # Format: "oha 1.17.0" (clap's --version, from Cargo.toml).
+    versionCommand: [--version]
+    versionRegex: 'oha ([0-9]+\.[0-9]+\.[0-9]+)'
+    identity:
+      # Cargo.toml description (clap "about"): "Ohayou(...), HTTP load generator,
+      # inspired by rakyll/hey with tui animation." Only the ASCII part is matched.
+      command: [--help]
+      mustMatch: 'HTTP load generator, inspired by rakyll/hey'
+    platforms:
+      # Plain builds, not "-pgo": the -pgo builds exist only for Linux and Windows.
+      windows/amd64:
+        url: https://github.com/hatoo/oha/releases/download/v1.17.0/oha-windows-amd64.exe
+        sha256: 3971644690672523c5d998874bef397cbc5d800cb1ba7164882eb7fe8f6027ac
+        size: 7921664
+        archive: none
+        minOS: "10.0"
+      darwin/amd64:
+        url: https://github.com/hatoo/oha/releases/download/v1.17.0/oha-macos-amd64
+        sha256: c372c87b3273d60aeeb0516f026672bdbcf234638e06ce43a752142c54651ca3
+        size: 11032192
+        archive: none
+        minOS: "10.12"
+      darwin/arm64:
+        url: https://github.com/hatoo/oha/releases/download/v1.17.0/oha-macos-arm64
+        sha256: 2c58f2bac11ae23a12f6188a6723fd1882fa82f73d9874c2141eb78c222752c7
+        size: 9538128
+        archive: none
+        minOS: "11.0"
+      linux/amd64:
+        url: https://github.com/hatoo/oha/releases/download/v1.17.0/oha-linux-amd64
+        sha256: 85c6eb98066b8c8bd513b2dd96fafd8f9863249ea653606bae1ca2e3a75c43d2
+        size: 12529488
+        archive: none
         minOS: "3.2"

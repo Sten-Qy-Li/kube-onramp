@@ -1,13 +1,13 @@
 # Open items
 
-State on 2026-11-23: **v0.1.0 is released** (2026-11-11); all 12 v0.1 acceptance tests pass ([TESTING.md](TESTING.md)). **M2 has started:** SPEC and DECISIONS (D40–D47) are updated. The catalog, code and tests are next.
+State on 2026-11-23: **v0.1.0 is released** (2026-11-11); all 12 v0.1 acceptance tests pass ([TESTING.md](TESTING.md)). **M2 has started:** SPEC and DECISIONS (D40–D47) are updated, and the catalog is done. The code and tests are next.
 
 ## Check around Phase 4 / Checkpoint 4 (mid-December)
 - [ ] **Prod namespace name.** The Week 14 page says `<team-name>-prod`, and ETAIS adds `ns-`, so `ns-<team>-prod` (`namespaces.prod` in `profiles/ut-devops.yaml`) should be right (D46). Confirm it with a real login. If it is wrong, fix the template in the next release.
 - [ ] **Before Checkpoint 4:** every team member runs `kube-onramp check`.
 
 ## M2 / v0.2.0 (started 2026-11-23; scope in SPEC §13)
-- [ ] **Catalog:** kubectl v1.37.2 (the server is v1.37.2 since 2026-11-23, D41) and the six extras (D42, D43). Check every URL and SHA-256 twice (D2; for oha, GitHub's digest replaces the checksum file) and record the values in D42.
+- [x] **Catalog:** kubectl v1.37.2 (D41) and the six extras (D42, D43), all 28 files checked twice on 2026-11-23. **`main` now installs the extras**, so don't tag a release before the code items below are done.
 - [ ] **Version rules:** the catalog field `accept`, used by inspect, `W-SHADOW` and `W-SKEW` (D44).
 - [ ] **Extras never block:** preflight skips an extra with a warning, `check` inspects the extras, and the new-terminal list comes from the catalog (D45). The code path for extras (`installExtras`, `W-EXTRA-*`, `--minimal`) exists but has never run with real entries.
 - [ ] **Prod:** the profile field `prodRequired`, the code `E-PROD-FORBIDDEN`, and the Phase 4 access checks (D46).
